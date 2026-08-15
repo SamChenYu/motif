@@ -2,12 +2,10 @@
 #include <array>
 #include <string>
 #include <unistd.h>
+#include "commands/status.hpp"
 
-// Placeholder forward declarations
-int status(int, char*[]) {
-    std::cout << "status" << std::endl;
-    return 0;
-}
+// Forward declarations
+
 int diff(int, char*[]) {
     std::cout << "diff" << std::endl;
     return 0;
@@ -44,7 +42,7 @@ int main(int argc, char* argv[]) {
 
     for (const auto &[fst, snd] : kCommands) {
         if (fst == argv[1]) {
-            return snd(argc, argv);
+            return snd(argc-1, argv+1); // Don't need to send the motif call
         }
     }
 

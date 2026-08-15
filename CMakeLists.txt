@@ -10,4 +10,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_C_STANDARD 11)
 
-add_executable(motif src/main.cpp)
+add_executable(motif src/main.cpp
+        src/cli/git.cpp
+        src/cli/git.h
+        src/commands/status.cpp
+        src/commands/status.h)
