@@ -1,22 +1,27 @@
 #include <iostream>
 #include <array>
 #include <string>
+#include <unistd.h>
 
 // Placeholder forward declarations
-void status(int, char*[]) {
+int status(int, char*[]) {
     std::cout << "status" << std::endl;
+    return 0;
 }
-void diff(int, char*[]) {
+int diff(int, char*[]) {
     std::cout << "diff" << std::endl;
+    return 0;
 }
-void logg(int, char*[]) {
+int logg(int, char*[]) {
     std::cout << "logg" << std::endl;
+    return 0;
 }
-void inspect(int, char*[]) {
+int inspect(int, char*[]) {
     std::cout << "inspect" << std::endl;
+    return 0;
 }
 
-static constexpr std::array<std::pair<std::string_view, void(*)(int, char*[])>, 4> kCommands{
+static constexpr std::array<std::pair<std::string_view, int(*)(int, char*[])>, 4> kCommands{
             std::pair{"status", &status},
             std::pair{"diff", &diff},
             std::pair{"log", &logg},
@@ -39,11 +44,10 @@ int main(int argc, char* argv[]) {
 
     for (const auto &[fst, snd] : kCommands) {
         if (fst == argv[1]) {
-            snd(argc, argv);
-            return 0;
+            return snd(argc, argv);
         }
     }
 
-    std::cout << "Unrecognized command: " << argv[1] << std::endl;
-    return 1;
+    // Forward the git command to execvp
+    return execvp("git", argv);
 }
