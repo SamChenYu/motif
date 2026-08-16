@@ -7,8 +7,9 @@
 #include <stdexcept>
 #include <string>
 #include <ranges>
+#include "../../external/miniz-amalgamated/miniz.h"
 
-// API Contract: Let consumers decide whether the error is ok or not
+// API Contract: Let consumers decide whether the error throws or not
 std::pair<std::string, int> capture_output(const std::string& cmd) {
     std::string out;
     FILE* pipe = popen(cmd.c_str(), "r");
@@ -45,7 +46,7 @@ bool is_musescore_file(const std::string& path) {
     return path.ends_with(".mscx") || path.ends_with(".mscz");
 }
 
-std::pair<std::string, std::string> get_head_and_working_tree(const std::string& path) {
+file_comparison get_head_and_working_tree(const std::string& path) {
 
     if (!path.ends_with(".mscx") || !path.ends_with(".mscz"))
         throw std::runtime_error{"get_head_and_working_tree() called with non .mscz or .mscx formats!"};
@@ -57,11 +58,11 @@ std::pair<std::string, std::string> get_head_and_working_tree(const std::string&
 
     // File not in HEAD and not CWD (technically shouldn't be possible because path was gathered from git diff)
     if (verify.second != 0 and !working_file)
-        return {"", ""};
+        return {path, "", ""};
 
     // File not in HEAD but in CWD
     if (verify.second != 0)
-        return {"", working_file.value()};
+        return {path, "", working_file.value()};
 
     // File in HEAD and in CWD
 
@@ -69,7 +70,7 @@ std::pair<std::string, std::string> get_head_and_working_tree(const std::string&
          std::pair<std::string, int> blob = capture_output("git cat-file blob \"HEAD:" + path + "\"");
         if (blob.second != 0)
             throw std::runtime_error{"Command failed: git cat-file blob " + path + " not found"};
-        return {blob.first, working_file.value()};
+        return {path, blob.first, working_file.value()};
     }
 
     // .mscz requires unzipping
@@ -77,10 +78,11 @@ std::pair<std::string, std::string> get_head_and_working_tree(const std::string&
     if (blob.second != 0)
         throw std::runtime_error{"Command failed: git cat-file blob " + path + " not found"};
     // Unzip both HEAD and working
-    // Er
 
 
 
 
-    return {};
+
+
+    return {path, "", ""};
 }

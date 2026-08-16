@@ -4,9 +4,14 @@
 #include <vector>
 #include <fstream>
 
-struct file_revision {
-    std::string file_name;
-    std::string blob_contents;
+struct file_comparison {
+
+    file_comparison(const std::string& file_name, const std::string& head_contents, const std::string& working_contents) :
+        m_file_name{file_name}, m_head_contents{head_contents}, m_working_contents{working_contents} {};
+
+    std::string m_file_name;
+    std::string m_head_contents;
+    std::string m_working_contents;
 };
 
 std::pair<std::string, int> capture_output(const std::string& cmd);
@@ -17,4 +22,4 @@ std::vector<std::string> files_changed();
 
 bool is_musescore_file(const std::string& path);
 
-std::pair<std::string, std::string> get_head_and_working_tree(const std::string& path);
+file_comparison get_head_and_working_tree(const std::string& path);
