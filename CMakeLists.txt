@@ -10,8 +10,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_C_STANDARD 11)
 
+# miniz library
+add_library(miniz STATIC external/miniz-amalgamated/miniz.c)
+target_include_directories(miniz SYSTEM PUBLIC external/miniz-amalgamated)
+
 add_executable(motif src/main.cpp
         src/cli/git.cpp
-        src/cli/git.h
+        src/cli/git.hpp
         src/commands/status.cpp
-        src/commands/status.h)
+        src/commands/status.hpp)
+
+target_link_libraries(motif PRIVATE miniz)
