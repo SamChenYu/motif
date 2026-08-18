@@ -14,10 +14,20 @@ set(CMAKE_C_STANDARD 11)
 add_library(miniz STATIC external/miniz-amalgamated/miniz.c)
 target_include_directories(miniz SYSTEM PUBLIC external/miniz-amalgamated)
 
+# pugixml library
+add_library(pugixml STATIC external/pugixml/src/pugixml.cpp)
+target_include_directories(pugixml SYSTEM PUBLIC external/pugixml/src)
+
+# fmt library
+add_library(fmt STATIC external/fmt/src/format.cc external/fmt/src/os.cc)
+target_include_directories(fmt SYSTEM PUBLIC external/fmt/include)
+
 add_executable(motif src/main.cpp
         src/cli/git.cpp
         src/cli/git.hpp
         src/commands/status.cpp
-        src/commands/status.hpp)
+        src/commands/status.hpp
+        src/cli/zipreader.cpp
+        src/cli/zipreader.hpp)
 
-target_link_libraries(motif PRIVATE miniz)
+target_link_libraries(motif PRIVATE miniz pugixml fmt)

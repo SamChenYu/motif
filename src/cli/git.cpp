@@ -1,19 +1,18 @@
 #include "git.hpp"
-
 #include <array>
-#include <cstdio>
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
 #include <string>
 #include <ranges>
-#include "../../external/miniz-amalgamated/miniz.h"
+#include <fmt/format.h>
+#include <miniz.h>
 
 // API Contract: Let consumers decide whether the error throws or not
 std::pair<std::string, int> capture_output(const std::string& cmd) {
     std::string out;
     FILE* pipe = popen(cmd.c_str(), "r");
-    if (!pipe) throw std::runtime_error("popen failed: " + cmd);
+    if (!pipe) throw std::runtime_error(fmt::format("popen failed: {}",cmd ));
 
     std::array<char, 64 * 1024> buf{};
     size_t n;
@@ -48,12 +47,12 @@ bool is_musescore_file(const std::string& path) {
 
 file_comparison get_head_and_working_tree(const std::string& path) {
 
-    if (!path.ends_with(".mscx") || !path.ends_with(".mscz"))
+    if (!(path.ends_with(".mscx") || path.ends_with(".mscz")))
         throw std::runtime_error{"get_head_and_working_tree() called with non .mscz or .mscx formats!"};
 
     // Firstly check rev-parse that it is inside HEAD and CWD.
     // Todo: This isn't strictly correct but for most cases when file is present in HEAD and CWD it is fine
-    std::pair<std::string, int> verify = capture_output("git rev-parse --quiet --verify \"HEAD:" + path + "\"");
+    std::pair<std::string, int> verify = capture_output(fmt::format("git rev-parse --quiet --verify \"HEAD:{}\"", path));
     std::optional<std::string> working_file = read_working_file(path);
 
     // File not in HEAD and not CWD (technically shouldn't be possible because path was gathered from git diff)
@@ -67,22 +66,17 @@ file_comparison get_head_and_working_tree(const std::string& path) {
     // File in HEAD and in CWD
 
     if (path.ends_with(".mscx")) { // Todo: assuming that the files don't change from .mscx to .mscz in the commit
-         std::pair<std::string, int> blob = capture_output("git cat-file blob \"HEAD:" + path + "\"");
+         std::pair<std::string, int> blob = capture_output(fmt::format("git cat-file blob \"HEAD:{}\"", path));
         if (blob.second != 0)
-            throw std::runtime_error{"Command failed: git cat-file blob " + path + " not found"};
+            throw std::runtime_error{fmt::format("Command failed: git cat-file blob {} not found", path)};
         return {path, blob.first, working_file.value()};
     }
 
     // .mscz requires unzipping
-    std::pair<std::string, int> blob = capture_output("git cat-file blob \"HEAD:" + path + "\"");
+    std::pair<std::string, int> blob = capture_output(fmt::format("git cat-file blob \"HEAD:{}\"", path));
     if (blob.second != 0)
-        throw std::runtime_error{"Command failed: git cat-file blob " + path + " not found"};
+        throw std::runtime_error{fmt::format("Command failed: git cat-file blob {} not found", path)};
     // Unzip both HEAD and working
-
-
-
-
-
 
     return {path, "", ""};
 }
