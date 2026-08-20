@@ -16,7 +16,7 @@ int status(int argc, char* argv[]) {
 
             std::cout << head_working_files.m_file_name << std::endl;
             std::cout << head_working_files.m_head_contents << std::endl;
-            std::cout << head_working_files.m_working_contents << std::endl;
+            // std::cout << head_working_files.m_working_contents << std::endl;
         }
     }
 

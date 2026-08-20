@@ -1,4 +1,5 @@
 #include "git.hpp"
+#include "zipreader.hpp"
 #include <array>
 #include <fstream>
 #include <iostream>
@@ -7,6 +8,7 @@
 #include <ranges>
 #include <fmt/format.h>
 #include <miniz.h>
+
 
 // API Contract: Let consumers decide whether the error throws or not
 std::pair<std::string, int> capture_output(const std::string& cmd) {
@@ -73,10 +75,19 @@ file_comparison get_head_and_working_tree(const std::string& path) {
     }
 
     // .mscz requires unzipping
-    std::pair<std::string, int> blob = capture_output(fmt::format("git cat-file blob \"HEAD:{}\"", path));
-    if (blob.second != 0)
+    std::pair<std::string, int> head_blob = capture_output(fmt::format("git cat-file blob \"HEAD:{}\"", path));
+    if (head_blob.second != 0)
         throw std::runtime_error{fmt::format("Command failed: git cat-file blob {} not found", path)};
     // Unzip both HEAD and working
 
-    return {path, "", ""};
+    std::optional<std::string> unzipped_head = extract_mscx(head_blob.first);
+    std::optional<std::string> unzipped_working = extract_mscx(working_file.value());
+
+    if (unzipped_head == std::nullopt)
+        throw std::runtime_error{fmt::format("HEAD at {} failed to unzip", path)};
+
+    if (unzipped_working == std::nullopt)
+        throw std::runtime_error{fmt::format("HEAD at {} failed to unzip", path)};
+
+    return {path, unzipped_head.value(), unzipped_working.value()};
 }

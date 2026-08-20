@@ -64,7 +64,6 @@ bool ends_with_mscx(std::string_view name) {
 }
 
 /// Finds the main document's name from META-INF/container.xml.
-///
 /// The container lists several rootfiles (style sheet, thumbnail, audio settings); the
 /// score is the one ending in .mscx.
 std::optional<std::string> mscx_name_from_container(const std::string& container_xml) {
