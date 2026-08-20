@@ -1,8 +1,45 @@
-# Motif 
-A music-native git wrapper for MuseScore files 🎼
+# Motif: A Music-Native Git Wrapper For MuseScore Files 🎼
 
-## `motif status`
-```shell
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C.svg?logo=cplusplus&logoColor=white)](https://en.cppreference.com/w/cpp/20)
+[![Build: CMake](https://img.shields.io/badge/build-CMake-064F8C.svg?logo=cmake&logoColor=white)](https://cmake.org/)
+[![Requires: Git](https://img.shields.io/badge/requires-Git-F05032.svg?logo=git&logoColor=white)](https://git-scm.com/)
+[![MuseScore](https://img.shields.io/badge/MuseScore-4-1A70DA.svg?logo=musescore&logoColor=white)](https://musescore.org/)
+
+`.mscz` files are zipped files, with underlying XML representing musical staffs.
+Even if you git diff'ed the raw XML it would look like this:
+```
++          <Chord>
++            <eid>A+wG06iOjMN_7mhKj0SVR1K</eid>
++            <durationType>quarter</durationType>
++            <Note>
++              <eid>qfka9XoYzLN_nC47N0dUO8L</eid>
++              <pitch>71</pitch>
++              <tpc>19</tpc>
++              </Note>
++            </Chord>
+```
+
+
+
+## Commands
+
+| Command | Description |
+| --- | --- |
+| `motif status` | Show changed files with a musical summary of what changed |
+| `motif diff` | Show note-level changes between HEAD and the working tree |
+| `motif log` | Show commit history with per-commit score stats |
+| `motif inspect <file>` | Print a structural breakdown of a score (parts, staves, measures, notes) |
+
+Any other command will be forwarded straight to git and returned without modification.
+
+---
+
+### `motif status`
+Show changed files, annotated with which instruments and measures changed.
+
+```console
+$ motif status
 On branch main
 
 Changes not staged for commit:
@@ -15,12 +52,15 @@ Musical summary:
   + 4 notes added
 
 Other changed files:
-  hello.md
+  README.md
   .mscbackup/
 ```
 
-## `motif diff`
-```shell
+### `motif diff`
+Show note-level changes between HEAD and the working tree.
+
+```console
+$ motif diff
 Piano Concerto in G Minor
 HEAD → working tree
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -45,8 +85,11 @@ PIANO · STAFF 1
 ```
 
 
-## `motif log -1`
-```shell
+### `motif log -1`
+Show commit history with per-commit score statistics.
+
+```console
+$ motif log -1
 commit e1cfadf4ff0495783290ff87be64af5b57e30723
 Author: Sam Yu
 Date:   2026-08-14
@@ -56,8 +99,11 @@ Date:   2026-08-14
   13 instruments · 102 measures · 5430 notes
 ```
 
-## `motif inspect Piano\ Concerto\ in\ G\ Minor.mscz`
-```shell
+### `motif inspect <file>`
+Print a structural breakdown of a score — parts, staves, measures, and per-staff contents.
+
+```console
+$ motif inspect "Piano Concerto in G Minor.mscz"
 Piano Concerto in G Minor.mscz
   division         480 ticks/quarter
   parts            13
