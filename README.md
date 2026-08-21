@@ -20,9 +20,9 @@ Even if you git diff'ed the raw XML it would look like this:
 +            </Chord>
 ```
 
+## `motif` wraps git and calculates proper music diffs for supported git commands
 
-
-## Commands
+### Commands
 
 | Command | Description |
 | --- | --- |
@@ -35,7 +35,7 @@ Any other command will be forwarded straight to git and returned without modific
 
 ---
 
-### `motif status`
+#### `motif status`
 Show changed files, annotated with which instruments and measures changed.
 
 ```console
@@ -56,14 +56,14 @@ Other changed files:
   .mscbackup/
 ```
 
-### `motif diff`
+#### `motif diff`
 Show note-level changes between HEAD and the working tree.
 
 ```console
 $ motif diff
 Piano Concerto in G Minor
 HEAD → working tree
-────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+───────────────────
 
 FLUTES
   m. 3
@@ -79,13 +79,13 @@ PIANO · STAFF 1
   ♪ E3 E3+G3
 
 
-────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+───────────────────
 2 notes changed
 4 notes added
 ```
 
 
-### `motif log -1`
+#### `motif log -1`
 Show commit history with per-commit score statistics.
 
 ```console
@@ -99,7 +99,7 @@ Date:   2026-08-14
   13 instruments · 102 measures · 5430 notes
 ```
 
-### `motif inspect <file>`
+#### `motif inspect <file>`
 Print a structural breakdown of a score — parts, staves, measures, and per-staff contents.
 
 ```console
