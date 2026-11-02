@@ -1,0 +1,8 @@
+On branch main
+
+Changes not staged for commit:
+
+    REMOVED    Oboe
+
+Musical summary:
+  - 1 instrument

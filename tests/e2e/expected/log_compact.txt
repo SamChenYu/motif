@@ -1,0 +1,9 @@
+<oid>  Remove the oboe
+        orchestration
+
+<oid>  Raise the opening a step
+        m. 1 | 4 notes changed | 1 transformation
+
+<oid>  Initial concerto sketch
+        2 instruments | 4 measures | 7 notes
+

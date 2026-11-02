@@ -1,0 +1,2 @@
+motif diff: unknown option '--nonsense'
+try `motif diff --help`, or `motif git diff` for git's own diff

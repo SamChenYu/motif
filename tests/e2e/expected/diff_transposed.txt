@@ -1,0 +1,19 @@
+Test Concerto
+HEAD -> working tree
+----------------------------------------------------------------------------
+
+VIOLIN I
+  m. 1
+
+  BEFORE
+    D4 F4 A4 G4
+
+  AFTER
+    E4 G4 B4 A4
+
+  -> transposed +2 semitones
+
+
+----------------------------------------------------------------------------
+4 notes changed
+1 transformation detected

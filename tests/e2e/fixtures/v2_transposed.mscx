@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<museScore version="4.70">
+  <Score>
+    <Division>480</Division>
+    <metaTag name="workTitle">Test Concerto</metaTag>
+    <Part id="1">
+      <Staff/>
+      <trackName>Violins, Violin I</trackName>
+      <Instrument id="violin">
+        <longName>Violins, Violin I</longName>
+        <shortName>Vln. I</shortName>
+        <trackName>Violins (section)</trackName>
+        <instrumentId>strings.violin</instrumentId>
+      </Instrument>
+    </Part>
+    <Part id="2">
+      <Staff/>
+      <trackName>Oboes, Oboe</trackName>
+      <Instrument id="oboe">
+        <longName>Oboes, Oboe</longName>
+        <shortName>Ob.</shortName>
+        <trackName>Oboe</trackName>
+        <instrumentId>wind.reed.oboe</instrumentId>
+      </Instrument>
+    </Part>
+
+    <Staff id="1">
+      <Measure>
+        <eid>VM1</eid>
+        <voice>
+          <KeySig><eid>VK1</eid><concertKey>-1</concertKey></KeySig>
+          <TimeSig><eid>VT1</eid><sigN>4</sigN><sigD>4</sigD></TimeSig>
+          <Chord><eid>VC1</eid><durationType>quarter</durationType><Note><eid>VN1</eid><pitch>64</pitch><tpc>18</tpc></Note></Chord>
+          <Chord><eid>VC2</eid><durationType>quarter</durationType><Note><eid>VN2</eid><pitch>67</pitch><tpc>15</tpc></Note></Chord>
+          <Chord><eid>VC3</eid><durationType>quarter</durationType><Note><eid>VN3</eid><pitch>71</pitch><tpc>19</tpc></Note></Chord>
+          <Chord><eid>VC4</eid><durationType>quarter</durationType><Note><eid>VN4</eid><pitch>69</pitch><tpc>17</tpc></Note></Chord>
+        </voice>
+      </Measure>
+      <Measure>
+        <eid>VM2</eid>
+        <voice>
+          <Rest><eid>VR2</eid><durationType>measure</durationType><duration>4/4</duration></Rest>
+        </voice>
+      </Measure>
+      <Measure>
+        <eid>VM3</eid>
+        <voice>
+          <Chord><eid>VC5</eid><durationType>half</durationType><Note><eid>VN5</eid><pitch>67</pitch><tpc>15</tpc></Note></Chord>
+          <Chord><eid>VC6</eid><durationType>half</durationType><Note><eid>VN6</eid><pitch>70</pitch><tpc>12</tpc></Note></Chord>
+        </voice>
+      </Measure>
+      <Measure>
+        <eid>VM4</eid>
+        <voice>
+          <Rest><eid>VR4</eid><durationType>measure</durationType><duration>4/4</duration></Rest>
+        </voice>
+      </Measure>
+    </Staff>
+
+    <Staff id="2">
+      <Measure>
+        <voice>
+          <KeySig><eid>OK1</eid><concertKey>-1</concertKey></KeySig>
+          <TimeSig><eid>OT1</eid><sigN>4</sigN><sigD>4</sigD></TimeSig>
+          <Rest><eid>OR1</eid><durationType>measure</durationType><duration>4/4</duration></Rest>
+        </voice>
+      </Measure>
+      <Measure><voice><Rest><eid>OR2</eid><durationType>measure</durationType><duration>4/4</duration></Rest></voice></Measure>
+      <Measure>
+        <voice>
+          <Chord><eid>OC1</eid><durationType>whole</durationType><Note><eid>ON1</eid><pitch>74</pitch><tpc>16</tpc></Note></Chord>
+        </voice>
+      </Measure>
+      <Measure><voice><Rest><eid>OR4</eid><durationType>measure</durationType><duration>4/4</duration></Rest></voice></Measure>
+    </Staff>
+  </Score>
+</museScore>
