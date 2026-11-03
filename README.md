@@ -140,3 +140,15 @@ STAFF 1 -- Flutes
   m.4    tick 6240    1920 ticks
       voice 1: [rest whole]
 ```
+
+---
+
+## Building
+
+Dependencies are vendored under `external/`, some as git submodules (e.g. `stave`,
+which itself nests other dependencies. Submodules must be initialized **recursively** or the build will fail.
+
+```console
+# When cloning fresh:
+$ git submodule update --init --recursive
+```
