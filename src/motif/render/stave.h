@@ -22,12 +22,14 @@ namespace motif::render {
 ///
 /// Set MOTIF_DUMP_NOTATION to a folder to keep the files stave was given there.
 int show_in_stave(const std::filesystem::path& stave, const std::string& mei,
-                  const StaveMarks& marks, const std::string& name);
+                  const StaveMarks& marks, const std::string& name,
+                  const std::string& summary = "");
 
 /// Shows two versions side by side in stave (stave --compare), the older on the left,
 /// with each side's marks, until the user quits. Returns stave's exit code, as above.
 int show_comparison_in_stave(const std::filesystem::path& stave, const std::string& before_mei,
                              const std::string& after_mei, const StaveComparison& comparison,
-                             const std::string& before_name, const std::string& after_name);
+                             const std::string& before_name, const std::string& after_name,
+                             const std::string& summary = "");
 
 }  // namespace motif::render

@@ -85,24 +85,26 @@ std::optional<fs::path> stave_for(const Options& options) {
 /// newer version alone, marked. Returns false when it couldn't show the score at all.
 bool show_split(const fs::path& stave, const diff::ScoreDiff& diff, const score::Score& before,
                 const score::Score& after, const std::string& file, const Revision& from,
-                const Revision& to) {
+                const Revision& to, const std::string& summary) {
   const auto comparison = render::stave_comparison(diff, before, after);
   if (comparison.marks == 0) return false;  // nothing to colour
   if (render::show_comparison_in_stave(stave, mei::to_mei(before), mei::to_mei(after), comparison,
-                                       fmt::format("{}  {}", file, from.label), to.label) == 0) {
+                                       fmt::format("{}  {}", file, from.label), to.label,
+                                       summary) == 0) {
     return true;
   }
   const auto marks = render::stave_marks(diff, after);
   return marks.marks > 0 &&
          render::show_in_stave(stave, mei::to_mei(after), marks,
-                               fmt::format("{}  {} -> {}", file, from.label, to.label)) == 0;
+                               fmt::format("{}  {} -> {}", file, from.label, to.label),
+                               summary) == 0;
 }
 
 /// Shows the diff as one score, each changed stretch as it was and then as it is.
 /// Returns false when stave couldn't show it.
 bool show_unified(const fs::path& stave, const diff::ScoreDiff& diff, const score::Score& before,
                   const score::Score& after, const std::string& file, const Revision& from,
-                  const Revision& to, int context) {
+                  const Revision& to, int context, const std::string& summary) {
   const auto unified = render::unified_diff(diff, before, after, from.label, to.label, context);
   if (unified.marks == 0 || unified.mei.empty()) return false;
   render::StaveMarks marks;
@@ -111,26 +113,25 @@ bool show_unified(const fs::path& stave, const diff::ScoreDiff& diff, const scor
   marks.start_staff = unified.start_staff;
   marks.marks = unified.marks;
   return render::show_in_stave(stave, unified.mei, marks,
-                               fmt::format("{}  {} -> {}", file, from.label, to.label)) == 0;
+                               fmt::format("{}  {} -> {}", file, from.label, to.label),
+                               summary) == 0;
 }
 
-/// Shows one score's diff in stave, then a short summary to keep in the scrollback.
+/// Shows one score's diff in stave, with what changed summed up above its status line.
 /// Returns false when stave couldn't show it at all, so the text view can be printed
 /// instead.
 bool show_in_stave(const fs::path& stave, const diff::ScoreDiff& diff, const score::Score& before,
                    const score::Score& after, const fs::path& path, const Revision& from,
-                   const Revision& to, const render::Style& style, const std::string& subtitle,
-                   bool split, int context) {
+                   const Revision& to, bool split, int context) {
   // ASCII only: stave's status line counts bytes, not characters.
   const auto file = path.filename().string();
-  const bool shown = split ? show_split(stave, diff, before, after, file, from, to)
-                           : show_unified(stave, diff, before, after, file, from, to, context);
-  if (!shown) return false;
-
-  render::DiffViewOptions summary;
-  summary.stat_only = true;
-  render::render_diff(diff, style, subtitle, summary);
-  return true;
+  std::string summary;
+  for (const auto& line : render::summary_lines(diff)) {
+    if (!summary.empty()) summary += ", ";
+    summary += line;
+  }
+  return split ? show_split(stave, diff, before, after, file, from, to, summary)
+               : show_unified(stave, diff, before, after, file, from, to, context, summary);
 }
 
 }  // namespace
@@ -223,8 +224,8 @@ int cmd_diff(const std::vector<std::string>& args) {
     if (diff.title.empty()) diff.title = path.stem().string();
 
     if (stave && !diff.empty() &&
-        show_in_stave(*stave, diff, *before, *after, path, from, to, style, subtitle,
-                      options.split, options.full ? -1 : options.context.value_or(2))) {
+        show_in_stave(*stave, diff, *before, *after, path, from, to, options.split,
+                      options.full ? -1 : options.context.value_or(2))) {
       continue;
     }
     render::render_diff(diff, style, subtitle, view_options(options));

@@ -214,47 +214,37 @@ void print_time_signatures(const std::vector<diff::TimeSigChange>& changes, cons
 
 void print_summary(const diff::ScoreDiff& diff, const Style& style) {
   fmt::print("{}\n", rule(style));
+  for (const auto& line : summary_lines(diff)) fmt::print("{}\n", line);
+}
 
+}  // namespace
+
+std::vector<std::string> summary_lines(const diff::ScoreDiff& diff) {
   const auto& stats = diff.stats;
   const auto line = [](int count, const char* singular, const char* plural_form,
                        const char* verb) {
     return fmt::format("{} {} {}", count, count == 1 ? singular : plural_form, verb);
   };
 
-  bool printed = false;
+  std::vector<std::string> out;
   if (stats.instruments_changed() > 0) {
-    fmt::print("{}\n", line(stats.instruments_changed(), "instrument", "instruments", "changed"));
-    printed = true;
+    out.push_back(line(stats.instruments_changed(), "instrument", "instruments", "changed"));
   }
-  if (stats.notes_changed > 0) {
-    fmt::print("{}\n", line(stats.notes_changed, "note", "notes", "changed"));
-    printed = true;
-  }
-  if (stats.notes_added > 0) {
-    fmt::print("{}\n", line(stats.notes_added, "note", "notes", "added"));
-    printed = true;
-  }
-  if (stats.notes_removed > 0) {
-    fmt::print("{}\n", line(stats.notes_removed, "note", "notes", "removed"));
-    printed = true;
-  }
+  if (stats.notes_changed > 0) out.push_back(line(stats.notes_changed, "note", "notes", "changed"));
+  if (stats.notes_added > 0) out.push_back(line(stats.notes_added, "note", "notes", "added"));
+  if (stats.notes_removed > 0) out.push_back(line(stats.notes_removed, "note", "notes", "removed"));
   if (stats.measures_added > 0) {
-    fmt::print("{}\n", line(stats.measures_added, "measure", "measures", "added"));
-    printed = true;
+    out.push_back(line(stats.measures_added, "measure", "measures", "added"));
   }
   if (stats.measures_removed > 0) {
-    fmt::print("{}\n", line(stats.measures_removed, "measure", "measures", "removed"));
-    printed = true;
+    out.push_back(line(stats.measures_removed, "measure", "measures", "removed"));
   }
   if (stats.articulations_changed > 0) {
-    fmt::print("{}\n", line(stats.articulations_changed, "articulation", "articulations",
-                            "changed"));
-    printed = true;
+    out.push_back(line(stats.articulations_changed, "articulation", "articulations", "changed"));
   }
   if (!diff.key_sigs.empty()) {
-    fmt::print("{}\n", line(static_cast<int>(diff.key_sigs.size()), "key signature",
-                            "key signatures", "changed"));
-    printed = true;
+    out.push_back(line(static_cast<int>(diff.key_sigs.size()), "key signature", "key signatures",
+                       "changed"));
   }
 
   int transforms = 0;
@@ -262,14 +252,12 @@ void print_summary(const diff::ScoreDiff& diff, const Style& style) {
     transforms += static_cast<int>(change.transforms.size());
   }
   if (transforms > 0) {
-    fmt::print("{}\n", line(transforms, "transformation", "transformations", "detected"));
-    printed = true;
+    out.push_back(line(transforms, "transformation", "transformations", "detected"));
   }
 
-  if (!printed) fmt::print("no musical change\n");
+  if (out.empty()) out.push_back("no musical change");
+  return out;
 }
-
-}  // namespace
 
 void render_diff(const diff::ScoreDiff& diff, const Style& style, const std::string& subtitle,
                  const DiffViewOptions& options) {

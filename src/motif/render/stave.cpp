@@ -143,8 +143,9 @@ int run_stave(const fs::path& stave, const std::vector<std::pair<std::string, st
 }  // namespace
 
 int show_in_stave(const fs::path& stave, const std::string& mei, const StaveMarks& marks,
-                  const std::string& name) {
+                  const std::string& name, const std::string& summary) {
   std::vector<std::string> args{"{score.mei}", "--marks", "{marks.json}", "--name", name};
+  if (!summary.empty()) args.insert(args.end(), {"--summary", summary});
   if (marks.start_bar) {
     args.insert(args.end(), {"--bar", std::to_string(*marks.start_bar), "--staff",
                              std::to_string(marks.start_staff)});
@@ -154,12 +155,14 @@ int show_in_stave(const fs::path& stave, const std::string& mei, const StaveMark
 
 int show_comparison_in_stave(const fs::path& stave, const std::string& before_mei,
                              const std::string& after_mei, const StaveComparison& comparison,
-                             const std::string& before_name, const std::string& after_name) {
+                             const std::string& before_name, const std::string& after_name,
+                             const std::string& summary) {
   std::vector<std::string> args{"--compare",      "{before.mei}", "{after.mei}",
                                 "--before-marks", "{before.json}", "--marks",
                                 "{after.json}",   "--before-name", before_name,
                                 "--name",         after_name};
   if (!comparison.pairs.empty()) args.insert(args.end(), {"--pairs", comparison.pairs});
+  if (!summary.empty()) args.insert(args.end(), {"--summary", summary});
   if (comparison.start_bar) {
     args.insert(args.end(), {"--bar", std::to_string(*comparison.start_bar), "--staff",
                              std::to_string(comparison.start_staff)});

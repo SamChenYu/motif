@@ -21,4 +21,8 @@ struct DiffViewOptions {
 void render_diff(const diff::ScoreDiff& diff, const Style& style, const std::string& subtitle,
                  const DiffViewOptions& options = {});
 
+/// The closing summary's counts, one a line: "4 notes changed", "1 transformation
+/// detected", or "no musical change".
+[[nodiscard]] std::vector<std::string> summary_lines(const diff::ScoreDiff& diff);
+
 }  // namespace motif::render
