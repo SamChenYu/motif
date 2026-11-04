@@ -24,12 +24,12 @@ void print_help() {
       "instrument over which measures, which instruments came and went, and how the\n"
       "key signature moved.\n"
       "\n"
-      "In a terminal, each score opens engraved in stave, the two versions side by\n"
-      "side: the older on the left with removed notes in red, the newer on the right\n"
-      "with added notes in green, and changed notes in yellow on both. They scroll\n"
-      "together; n and N jump between changes, q moves on to the next score. --raw,\n"
-      "--stat, --orchestration and --key print text instead, as does a diff whose\n"
-      "output isn't a terminal.\n"
+      "In a terminal, each score opens engraved in stave as one score that reads\n"
+      "straight through: wherever bars changed, they appear as they were, with removed\n"
+      "and changed notes in red, then as they are, with added and changed notes in\n"
+      "green. n and N jump between changes; q moves on to the next score. --split puts\n"
+      "the two versions side by side instead. --raw, --stat, --orchestration and --key\n"
+      "print text, as does a diff whose output isn't a terminal.\n"
       "\n"
       "  motif diff                working tree against HEAD\n"
       "  motif diff <rev>            working tree against <rev>\n"
@@ -79,26 +79,51 @@ std::optional<fs::path> stave_for(const Options& options) {
   return render::find_stave();
 }
 
-/// Shows one score's diff in stave, the two versions side by side, then a short summary
-/// to keep in the scrollback. Should stave not manage the comparison, it shows the newer
-/// version alone, marked. Returns false when it couldn't show the score at all, so the
-/// text view can be printed instead.
-bool show_in_stave(const fs::path& stave, const diff::ScoreDiff& diff, const score::Score& before,
-                   const score::Score& after, const fs::path& path, const Revision& from,
-                   const Revision& to, const render::Style& style, const std::string& subtitle) {
+/// Shows the two versions side by side (--split). Should stave not manage that, shows the
+/// newer version alone, marked. Returns false when it couldn't show the score at all.
+bool show_split(const fs::path& stave, const diff::ScoreDiff& diff, const score::Score& before,
+                const score::Score& after, const std::string& file, const Revision& from,
+                const Revision& to) {
   const auto comparison = render::stave_comparison(diff, before, after);
   if (comparison.marks == 0) return false;  // nothing to colour
+  if (render::show_comparison_in_stave(stave, mei::to_mei(before), mei::to_mei(after), comparison,
+                                       fmt::format("{}  {}", file, from.label), to.label) == 0) {
+    return true;
+  }
+  const auto marks = render::stave_marks(diff, after);
+  return marks.marks > 0 &&
+         render::show_in_stave(stave, mei::to_mei(after), marks,
+                               fmt::format("{}  {} -> {}", file, from.label, to.label)) == 0;
+}
 
+/// Shows the diff as one score, each changed stretch as it was and then as it is.
+/// Returns false when stave couldn't show it.
+bool show_unified(const fs::path& stave, const diff::ScoreDiff& diff, const score::Score& before,
+                  const score::Score& after, const std::string& file, const Revision& from,
+                  const Revision& to) {
+  const auto unified = render::unified_diff(diff, before, after, from.label, to.label);
+  if (unified.marks == 0 || unified.mei.empty()) return false;
+  render::StaveMarks marks;
+  marks.json = unified.json;
+  marks.start_bar = unified.start_bar;
+  marks.start_staff = unified.start_staff;
+  marks.marks = unified.marks;
+  return render::show_in_stave(stave, unified.mei, marks,
+                               fmt::format("{}  {} -> {}", file, from.label, to.label)) == 0;
+}
+
+/// Shows one score's diff in stave, then a short summary to keep in the scrollback.
+/// Returns false when stave couldn't show it at all, so the text view can be printed
+/// instead.
+bool show_in_stave(const fs::path& stave, const diff::ScoreDiff& diff, const score::Score& before,
+                   const score::Score& after, const fs::path& path, const Revision& from,
+                   const Revision& to, const render::Style& style, const std::string& subtitle,
+                   bool split) {
   // ASCII only: stave's status line counts bytes, not characters.
   const auto file = path.filename().string();
-  if (render::show_comparison_in_stave(stave, mei::to_mei(before), mei::to_mei(after), comparison,
-                                       fmt::format("{}  {}", file, from.label), to.label) != 0) {
-    const auto marks = render::stave_marks(diff, after);
-    const auto name = fmt::format("{}  {} -> {}", file, from.label, to.label);
-    if (marks.marks == 0 || render::show_in_stave(stave, mei::to_mei(after), marks, name) != 0) {
-      return false;
-    }
-  }
+  const bool shown = split ? show_split(stave, diff, before, after, file, from, to)
+                           : show_unified(stave, diff, before, after, file, from, to);
+  if (!shown) return false;
 
   render::DiffViewOptions summary;
   summary.stat_only = true;
@@ -196,7 +221,8 @@ int cmd_diff(const std::vector<std::string>& args) {
     if (diff.title.empty()) diff.title = path.stem().string();
 
     if (stave && !diff.empty() &&
-        show_in_stave(*stave, diff, *before, *after, path, from, to, style, subtitle)) {
+        show_in_stave(*stave, diff, *before, *after, path, from, to, style, subtitle,
+                      options.split)) {
       continue;
     }
     render::render_diff(diff, style, subtitle, view_options(options));

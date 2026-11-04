@@ -20,6 +20,7 @@ struct Options {
   bool stat = false;
   bool detail = false;  ///< log: expand every listed commit
   bool raw = false;     ///< diff: the text view, never stave's notation
+  bool split = false;   ///< diff: the two versions side by side, rather than in one score
   bool help = false;
 
   std::optional<std::string> instrument;

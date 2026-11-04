@@ -64,6 +64,7 @@ const char* common_flag_help() {
       "  --stat                counts only, no per-instrument detail\n"
       "  --detail              log: expand every listed commit\n"
       "  --raw                 diff: text only, instead of notation in stave\n"
+      "  --split               diff: old and new side by side, instead of in one score\n"
       "  --ascii               plain ASCII instead of box-drawing characters\n"
       "  --no-color            no ANSI colour\n";
 }
@@ -106,6 +107,10 @@ Options parse_options(const std::vector<std::string>& args, bool accepts_revisio
     }
     if (arg == "--raw") {
       options.raw = true;
+      continue;
+    }
+    if (arg == "--split") {
+      options.split = true;
       continue;
     }
     if (arg == "--orchestration") {
