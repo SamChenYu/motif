@@ -295,7 +295,6 @@ void parse_parts(const pugi::xml_node& score_node, Score& score,
         clefs[static_cast<std::size_t>(staff) - 1] = clef.text().as_string();
       }
     }
-    default_clefs.push_back(std::move(clefs));
 
     // Staff elements inside a Part usually carry no id, so ownership is positional:
     // each part consumes as many score-level staves as it declares.
@@ -303,7 +302,18 @@ void parse_parts(const pugi::xml_node& score_node, Score& score,
       const int id = staff_node.attribute("id").as_int(next_staff_id);
       part.staff_ids.push_back(id);
       next_staff_id = id + 1;
+
+      // A staff's own default clef beats its instrument's: a double bass sounds an
+      // octave below its written notes, so at concert pitch its clef is F8vb.
+      std::string clef = child_text(staff_node, "defaultConcertClef");
+      if (clef.empty()) clef = child_text(staff_node, "defaultClef");
+      const std::size_t k = part.staff_ids.size() - 1;
+      if (!clef.empty()) {
+        if (clefs.size() <= k) clefs.resize(k + 1);
+        clefs[k] = std::move(clef);
+      }
     }
+    default_clefs.push_back(std::move(clefs));
 
     score.parts.push_back(std::move(part));
   }

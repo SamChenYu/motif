@@ -224,6 +224,19 @@ TEST_CASE("each staff starts in its instrument's clef", "[parser]") {
   CHECK(score->staff_by_id(3)->default_clef == "F");
 }
 
+TEST_CASE("a staff's own default clef beats its instrument's", "[parser]") {
+  const auto score = parse_mscx(R"XML(<museScore version="4.70"><Score><Division>480</Division>
+    <Part id="1">
+      <Staff><defaultConcertClef>F8vb</defaultConcertClef><defaultTransposingClef>F</defaultTransposingClef></Staff>
+      <trackName>Contrabass</trackName>
+      <Instrument id="contrabass"><clef>F</clef></Instrument>
+    </Part>
+    <Staff id="1"><Measure><voice><Rest><durationType>measure</durationType><duration>4/4</duration></Rest></voice></Measure></Staff>
+  </Score></museScore>)XML");
+  REQUIRE(score.has_value());
+  CHECK(score->staves[0].default_clef == "F8vb");
+}
+
 TEST_CASE("grace notes take no time in the bar", "[parser]") {
   const auto score = parse_mscx(R"XML(<museScore version="4.70"><Score><Division>480</Division>
     <Part id="1"><Staff/><trackName>Flute</trackName></Part>
