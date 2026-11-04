@@ -445,6 +445,7 @@ ScoreDiff compute(const Score& before, const Score& after, const Options& option
   auto staff_pairs = match_parts(before, after, diff.orchestration);
   const auto alignment = align_score(before, after, staff_pairs);
   diff.alignment = alignment;
+  diff.staff_pairs = staff_pairs;
 
   for (const auto& [before_id, after_id] : staff_pairs) {
     if (options.staff && *options.staff != after_id) continue;

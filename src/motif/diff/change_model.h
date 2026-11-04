@@ -2,6 +2,7 @@
 
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "motif/score/model.h"
@@ -204,6 +205,10 @@ struct ScoreDiff {
   /// Which measure of the older score is which of the newer, for the whole score: the
   /// same alignment every staff was compared by.
   Alignment alignment;
+
+  /// Which staff of the older score is which of the newer, as (older id, newer id), for
+  /// every instrument in both.
+  std::vector<std::pair<int, int>> staff_pairs;
 
   [[nodiscard]] bool empty() const {
     return orchestration.empty() && staves.empty() && key_sigs.empty() && time_sigs.empty();
