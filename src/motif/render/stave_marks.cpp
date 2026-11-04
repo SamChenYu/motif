@@ -479,7 +479,8 @@ StaveComparison stave_comparison(const diff::ScoreDiff& diff, const Score& befor
 }
 
 UnifiedDiff unified_diff(const diff::ScoreDiff& diff, const Score& before, const Score& after,
-                         const std::string& before_text, const std::string& after_text) {
+                         const std::string& before_text, const std::string& after_text,
+                         int context) {
   UnifiedDiff out;
   if (before.staves.empty() || before.staves.front().measures.empty() || after.staves.empty() ||
       after.staves.front().measures.empty() || diff.alignment.empty()) {
@@ -566,7 +567,7 @@ UnifiedDiff unified_diff(const diff::ScoreDiff& diff, const Score& before, const
     first = true;
     for (const auto* link : hunk) {
       if (link->op == MeasureOp::Delete) continue;
-      if (first && had_old) bars.back().dashed_end = true;  // between the old bars and the new
+      if (first && had_old) bars.back().right = "dashed";  // between the old bars and the new
       const int a = add(after, link->after, new_staves, first ? after_text : "");
       now_bars.push_back(a);
       new_bar[static_cast<std::size_t>(link->after)] = a;
@@ -574,6 +575,58 @@ UnifiedDiff unified_diff(const diff::ScoreDiff& diff, const Score& before, const
       if (link->op == MeasureOp::Match) after_to_before[static_cast<std::size_t>(link->after)] = link->before;
       first = false;
     }
+  }
+
+  // Like git diff: only the changed stretches, with `context` unchanged bars either side.
+  // Where bars are left out, a double barline and a note of how many say so.
+  if (context >= 0) {
+    std::vector<bool> changed(bars.size(), false);
+    for (const int b : was_bars) changed[static_cast<std::size_t>(b)] = true;
+    for (const int a : now_bars) changed[static_cast<std::size_t>(a)] = true;
+
+    const int count = static_cast<int>(bars.size());
+    std::vector<bool> keep(bars.size(), false);
+    for (int i = 0; i < count; ++i) {
+      if (!changed[static_cast<std::size_t>(i)]) continue;
+      for (int j = std::max(0, i - context); j <= std::min(count - 1, i + context); ++j) {
+        keep[static_cast<std::size_t>(j)] = true;
+      }
+    }
+
+    std::vector<int> moved(bars.size(), -1);
+    std::vector<mei::Bar> kept;
+    std::vector<bool> kept_new;
+    int skipped = 0;
+    for (std::size_t i = 0; i < bars.size(); ++i) {
+      if (!keep[i]) {
+        ++skipped;
+        continue;
+      }
+      mei::Bar bar = bars[i];
+      if (skipped > 0) {
+        const auto gap = fmt::format("… {} bar{} unchanged", skipped, skipped == 1 ? "" : "s");
+        bar.text = bar.text.empty() ? gap : gap + "  " + bar.text;
+        if (!kept.empty() && kept.back().right.empty()) kept.back().right = "dbl";
+      }
+      skipped = 0;
+      bar.number = static_cast<int>(kept.size()) + 1;
+      moved[i] = static_cast<int>(kept.size());
+      kept.push_back(std::move(bar));
+      kept_new.push_back(from_new[i]);
+    }
+
+    const auto remap = [&](std::vector<int>& indices) {
+      for (int& i : indices) i = i >= 0 ? moved[static_cast<std::size_t>(i)] : -1;
+    };
+    remap(old_bar);
+    remap(new_bar);
+    remap(was_bars);
+    remap(now_bars);
+    remap(deleted);
+    remap(inserted);
+    bars = std::move(kept);
+    from_new = std::move(kept_new);
+    if (bars.empty()) return out;
   }
 
   const UnifiedBars unified(bars);
@@ -619,9 +672,10 @@ UnifiedDiff unified_diff(const diff::ScoreDiff& diff, const Score& before, const
   }
   marks.drop_notes_in_marked_bars();
 
-  // Open a bar before the first change, so it's seen coming in.
+  // Open at the start of what is shown, or, with every bar shown, a bar before the first
+  // change, so it's seen coming in.
   if (const auto first = marks.first()) {
-    out.start_bar = unified.number(std::max(0, first->first - 1));
+    out.start_bar = unified.number(context >= 0 ? 0 : std::max(0, first->first - 1));
     out.start_staff = first->second;
   }
   out.json = marks.json(out.marks);

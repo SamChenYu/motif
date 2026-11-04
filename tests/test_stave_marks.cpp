@@ -283,3 +283,45 @@ TEST_CASE("unified, an added instrument is green wherever the new version shows"
   REQUIRE(doc.load_string(u.mei.c_str()));
   CHECK(doc.select_node("//section/measure[1]/staff[@n='2']/layer/mSpace"));
 }
+
+TEST_CASE("unified, unchanged bars are left out but for some context, as git diff does",
+          "[stave-marks][unified]") {
+  std::vector<TestMeasure> measures;
+  for (int m = 0; m < 10; ++m) {
+    measures.push_back(TestMeasure{.eid = fmt::format("M{}", m + 1), .notes = scale_run(60, 14)});
+  }
+  auto edited = measures;
+  edited[5].notes[0] = TestNote{62, 16};  // bar 6
+
+  const auto before = parse(build_score({violin(measures)}));
+  const auto after = parse(build_score({violin(edited)}));
+  const auto u = motif::render::unified_diff(compute(before, after), before, after, "HEAD", "now", 1);
+
+  INFO(u.json);
+  // Bar 5 for context, bar 6 as it was and as it is, then bar 7.
+  pugi::xml_document doc;
+  REQUIRE(doc.load_string(u.mei.c_str()));
+  const auto shown = doc.select_nodes("//section/measure");
+  REQUIRE(shown.size() == 4);
+  const auto label = [&](std::size_t i) {
+    return std::string(shown[i].node().attribute("label").as_string());
+  };
+  CHECK(label(0) == "5");
+  CHECK(label(1) == "6");
+  CHECK(label(2) == "6");
+  CHECK(label(3) == "7");
+  CHECK(std::string(shown[0].node().child("dir").text().as_string()) ==
+        "\xe2\x80\xa6 4 bars unchanged");  // bars 1-4 left out before it
+  CHECK(std::string(shown[3].node().attribute("n").as_string()) == "4");
+
+  CHECK(contains(u.json, R"({"tone": "removed", "bar": 2, "staff": 1, "voice": 1, "at": "0", "pitch": 60})"));
+  CHECK(contains(u.json, R"({"tone": "added", "bar": 3, "staff": 1, "voice": 1, "at": "0", "pitch": 62})"));
+  REQUIRE(u.start_bar.has_value());
+  CHECK(*u.start_bar == 1);
+
+  // With every bar shown, nothing is left out.
+  const auto all = motif::render::unified_diff(compute(before, after), before, after, "HEAD", "now");
+  pugi::xml_document whole;
+  REQUIRE(whole.load_string(all.mei.c_str()));
+  CHECK(whole.select_nodes("//section/measure").size() == 11);
+}

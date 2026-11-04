@@ -28,7 +28,7 @@ struct Bar {
   int number = 1;           ///< the measure's number: what stave's marks and --bar find it by
   std::string label;        ///< what to call it on screen, if not its number ("" for that)
   std::string text;         ///< words above the top staff at its start ("" for none)
-  bool dashed_end = false;  ///< a dashed barline after it
+  std::string right;        ///< its closing barline, as MEI names it ("dashed", "dbl"); "" for plain
 };
 
 /// Writes a score made of bars taken from one or more scores, in order, on the staves of

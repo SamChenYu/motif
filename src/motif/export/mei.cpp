@@ -449,7 +449,7 @@ class Writer {
     measure.append_attribute("n") = bar.number;
     if (!bar.label.empty()) measure.append_attribute("label") = bar.label.c_str();
     if (top.irregular) measure.append_attribute("metcon") = "false";
-    if (bar.dashed_end) measure.append_attribute("right") = "dashed";
+    if (!bar.right.empty()) measure.append_attribute("right") = bar.right.c_str();
 
     for (std::size_t s = 0; s < layout_.staves.size(); ++s) {
       auto staff = measure.append_child("staff");

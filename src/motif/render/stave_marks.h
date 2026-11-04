@@ -78,8 +78,12 @@ struct UnifiedDiff {
 
 /// Builds the unified view of `diff`. `before_text` and `after_text` label the two
 /// halves of each changed stretch, above the top staff ("HEAD", "working tree").
+///
+/// Like git diff, it shows only the changed stretches and `context` unchanged bars
+/// either side of each; where bars are left out, a double barline and a note say how
+/// many. A `context` below 0 shows every bar.
 [[nodiscard]] UnifiedDiff unified_diff(const diff::ScoreDiff& diff, const score::Score& before,
                                        const score::Score& after, const std::string& before_text,
-                                       const std::string& after_text);
+                                       const std::string& after_text, int context = -1);
 
 }  // namespace motif::render
