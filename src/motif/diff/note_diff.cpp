@@ -261,6 +261,7 @@ std::vector<NoteChange> whole_measure_change(const Measure& measure, int measure
       emit_element(el, measure_number, voice.index, kind, out);
     }
   }
+  for (auto& change : out) change.whole_measure = true;
   return out;
 }
 

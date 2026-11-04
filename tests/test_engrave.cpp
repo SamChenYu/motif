@@ -10,9 +10,11 @@
 #include <string>
 #include <vector>
 
+#include "motif/diff/engine.h"
 #include "motif/export/mei.h"
 #include "motif/git/subprocess.h"
 #include "motif/mscz/parser.h"
+#include "motif/render/stave_marks.h"
 
 namespace fs = std::filesystem;
 
@@ -85,6 +87,57 @@ TEST_CASE("stave engraves motif's MEI of each fixture", "[engrave]") {
 TEST_CASE("stave engraves motif's MEI of the sample concerto", "[engrave][sample]") {
   TempDir dir;
   const auto r = run_stave(dir, motif::mei::to_mei(load(MOTIF_SAMPLE_SCORE)));
+  INFO(r.err);
+  CHECK(r.ok());
+}
+#endif
+
+TEST_CASE("stave finds every mark motif makes for the fixture diffs", "[engrave]") {
+  const auto v1 = load(fs::path(MOTIF_FIXTURES) / "v1.mscx");
+  for (const char* name : {"v2_transposed.mscx", "v3_no_oboe.mscx"}) {
+    INFO(name);
+    const auto after = load(fs::path(MOTIF_FIXTURES) / name);
+    const auto marks = motif::render::stave_marks(motif::diff::compute(v1, after), after);
+    INFO(marks.json);
+    CHECK(marks.marks > 0);
+    CHECK(marks.dropped == 0);
+
+    TempDir dir;
+    const auto r = run_stave(dir, motif::mei::to_mei(after), marks.json);
+    INFO(r.err);
+    CHECK(r.ok());
+  }
+}
+
+#ifdef MOTIF_SAMPLE_SCORE
+TEST_CASE("stave finds every note of the concerto by motif's bar, staff, voice, onset and pitch",
+          "[engrave][sample]") {
+  // Raising every note a semitone marks every note of the score as changed, so stave
+  // must agree with motif on where each one is: through tuplets, voices that start late,
+  // irregular bars and transposing instruments.
+  const auto before = load(MOTIF_SAMPLE_SCORE);
+  auto after = before;
+  int raised = 0;
+  for (auto& staff : after.staves) {
+    for (auto& measure : staff.measures) {
+      for (auto& voice : measure.voices) {
+        for (auto& el : voice.elements) {
+          for (auto& note : el.notes) {
+            note.pitch.midi += 1;
+            note.pitch.tpc += 7;  // the same letter, a sharp higher
+            ++raised;
+          }
+        }
+      }
+    }
+  }
+
+  const auto marks = motif::render::stave_marks(motif::diff::compute(before, after), after);
+  CHECK(marks.dropped == 0);
+  CHECK(marks.marks == raised);
+
+  TempDir dir;
+  const auto r = run_stave(dir, motif::mei::to_mei(after), marks.json);
   INFO(r.err);
   CHECK(r.ok());
 }

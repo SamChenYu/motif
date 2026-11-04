@@ -20,6 +20,7 @@ add_executable(motif_tests
   test_terminal.cpp
   test_options.cpp
   test_mei.cpp
+  test_stave_marks.cpp
 )
 
 target_link_libraries(motif_tests PRIVATE motif_core pugixml::pugixml Catch2::Catch2WithMain)

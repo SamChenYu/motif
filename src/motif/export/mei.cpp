@@ -7,6 +7,7 @@
 #include <array>
 #include <cctype>
 #include <map>
+#include <numeric>
 #include <optional>
 #include <sstream>
 #include <string_view>
@@ -92,6 +93,60 @@ Value element_value(const Element& el, const Voice& voice, int division) {
     if (tuplet.normal > 0) ticks = ticks * tuplet.actual / tuplet.normal;
   }
   return value_from_ticks(ticks, division).value_or(Value{"4", 0});
+}
+
+/// The tuplets an element sits in, outermost first, as indices into Voice::tuplets.
+std::vector<int> tuplet_chain(const Element& el, const Voice& voice) {
+  std::vector<int> chain;
+  for (int t = el.tuplet; t >= 0; t = voice.tuplets[static_cast<std::size_t>(t)].parent) {
+    chain.push_back(t);
+  }
+  std::reverse(chain.begin(), chain.end());
+  return chain;
+}
+
+/// How many of the tuplets in `open` the next element, inside `chain`, stays within.
+std::size_t shared_tuplets(const std::vector<int>& open, const std::vector<int>& chain) {
+  std::size_t common = 0;
+  while (common < open.size() && common < chain.size() && open[common] == chain[common]) ++common;
+  return common;
+}
+
+/// A gap of real `ticks`, in the written ticks of a space inside `tuplets`: inside a
+/// triplet, written time runs half as fast again.
+long long written_gap(long long ticks, const std::vector<int>& tuplets, const Voice& voice) {
+  for (const int t : tuplets) {
+    const auto& tuplet = voice.tuplets[static_cast<std::size_t>(t)];
+    if (tuplet.normal > 0) ticks = ticks * tuplet.actual / tuplet.normal;
+  }
+  return ticks;
+}
+
+/// The quarter notes a written value lasts, inside `tuplets` (the first `depth` of them).
+Quarters sounding(const Value& value, const std::vector<int>& tuplets, std::size_t depth,
+                  const Voice& voice) {
+  long long num = 4;
+  long long den = 1;
+  if (value.dur == "long") {
+    num = 16;
+  } else if (value.dur == "breve") {
+    num = 8;
+  } else {
+    den = std::stoll(value.dur);
+  }
+  if (value.dots > 0) {
+    num *= (1LL << (value.dots + 1)) - 1;
+    den *= 1LL << value.dots;
+  }
+  for (std::size_t i = 0; i < depth && i < tuplets.size(); ++i) {
+    const auto& tuplet = voice.tuplets[static_cast<std::size_t>(tuplets[i])];
+    if (tuplet.actual <= 0 || tuplet.normal <= 0) continue;
+    num *= tuplet.normal;
+    den *= tuplet.actual;
+  }
+  Quarters q;
+  q.add(num, den);
+  return q;
 }
 
 struct ClefSpec {
@@ -384,31 +439,21 @@ class Writer {
                    const std::unordered_map<const Note*, int>& shown) {
     // Tuplets open around the element being written, outermost first.
     std::vector<std::pair<int, pugi::xml_node>> open;
+    std::vector<int> open_ids;
     const auto container = [&] { return open.empty() ? layer : open.back().second; };
     int cursor = 0;
 
     for (const auto& el : voice.elements) {
-      std::vector<int> chain;
-      for (int t = el.tuplet; t >= 0; t = voice.tuplets[static_cast<std::size_t>(t)].parent) {
-        chain.push_back(t);
-      }
-      std::reverse(chain.begin(), chain.end());
-
-      std::size_t common = 0;
-      while (common < open.size() && common < chain.size() && open[common].first == chain[common]) {
-        ++common;
-      }
+      const auto chain = tuplet_chain(el, voice);
+      const std::size_t common = shared_tuplets(open_ids, chain);
       open.resize(common);
+      open_ids.resize(common);
 
       // A gap (a voice that starts late, or pauses) becomes invisible spaces, so the
-      // notes after it keep their onsets. Inside a tuplet, written time runs faster.
+      // notes after it keep their onsets.
       if (el.onset > cursor) {
-        long long gap = el.onset - cursor;
-        for (const auto& [t, node] : open) {
-          const auto& tuplet = voice.tuplets[static_cast<std::size_t>(t)];
-          if (tuplet.normal > 0) gap = gap * tuplet.actual / tuplet.normal;
-        }
-        for (const auto& dur : space_values(gap, score_.division)) {
+        for (const auto& dur :
+             space_values(written_gap(el.onset - cursor, open_ids, voice), score_.division)) {
           container().append_child("space").append_attribute("dur") = dur.c_str();
         }
       }
@@ -419,6 +464,7 @@ class Writer {
         node.append_attribute("num") = tuplet.actual;
         node.append_attribute("numbase") = tuplet.normal;
         open.emplace_back(chain[i], node);
+        open_ids.push_back(chain[i]);
       }
 
       write_element(container(), el, voice, shown);
@@ -501,6 +547,53 @@ class Writer {
 };
 
 }  // namespace
+
+void Quarters::add(long long n, long long d) {
+  num = num * d + n * den;
+  den *= d;
+  const long long g = std::gcd(num < 0 ? -num : num, den);
+  if (g > 1) {
+    num /= g;
+    den /= g;
+  }
+}
+
+std::string Quarters::text() const {
+  return den == 1 ? fmt::format("{}", num) : fmt::format("{}/{}", num, den);
+}
+
+std::vector<Quarters> onsets(const score::Voice& voice, int division) {
+  // Walks the voice as Writer::write_layer writes it, adding up what each written
+  // element and space lasts.
+  std::vector<Quarters> out;
+  out.reserve(voice.elements.size());
+  std::vector<int> open;
+  Quarters at;
+  int cursor = 0;
+
+  for (const auto& el : voice.elements) {
+    const auto chain = tuplet_chain(el, voice);
+    open.resize(shared_tuplets(open, chain));
+
+    if (el.onset > cursor) {
+      for (const auto& dur : space_values(written_gap(el.onset - cursor, open, voice), division)) {
+        const auto q = sounding(Value{dur, 0}, open, open.size(), voice);
+        at.add(q.num, q.den);
+      }
+    }
+    open = chain;
+    out.push_back(at);
+
+    if (el.is_rest() && el.duration_type == "measure") {
+      at.add(el.ticks, division);  // a whole bar, which is always whole ticks
+    } else {
+      const auto q = sounding(element_value(el, voice, division), chain, chain.size(), voice);
+      at.add(q.num, q.den);
+    }
+    cursor = std::max(cursor, el.end_tick());
+  }
+  return out;
+}
 
 std::string to_mei(const score::Score& score) {
   if (score.staves.empty() || score.staves.front().measures.empty()) return {};

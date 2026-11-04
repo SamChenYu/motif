@@ -314,7 +314,8 @@ void diff_key_signatures(const Score& before, const Score& after,
 /// the measure exists on.
 void count_measure_changes(const Score& after,
                            const std::vector<std::pair<int, int>>& staff_pairs,
-                           const Alignment& alignment, const Options& options, Stats& stats) {
+                           const Alignment& alignment, const Options& options, Stats& stats,
+                           std::vector<int>& inserted) {
   if (staff_pairs.empty()) return;
   const auto* reference = after.staff_by_id(staff_pairs.front().second);
 
@@ -339,6 +340,7 @@ void count_measure_changes(const Score& after,
 
     if (link.op == MeasureOp::Insert) {
       ++stats.measures_added;
+      inserted.push_back(link.after);
     } else {
       ++stats.measures_removed;
     }
@@ -398,7 +400,8 @@ std::vector<std::pair<int, int>> match_parts(const Score& before, const Score& a
       out.changes.push_back(PartChange{.kind = PartChange::Kind::Removed,
                                        .name = part.display_name(),
                                        .old_name = {},
-                                       .instrument_id = part.instrument_id});
+                                       .instrument_id = part.instrument_id,
+                                       .part_index = static_cast<int>(i)});
       continue;
     }
 
@@ -407,7 +410,8 @@ std::vector<std::pair<int, int>> match_parts(const Score& before, const Score& a
       out.changes.push_back(PartChange{.kind = PartChange::Kind::Renamed,
                                        .name = counterpart.display_name(),
                                        .old_name = part.display_name(),
-                                       .instrument_id = counterpart.instrument_id});
+                                       .instrument_id = counterpart.instrument_id,
+                                       .part_index = before_match[i]});
     } else {
       out.unchanged.push_back(part.display_name());
     }
@@ -425,7 +429,8 @@ std::vector<std::pair<int, int>> match_parts(const Score& before, const Score& a
     out.changes.push_back(PartChange{.kind = PartChange::Kind::Added,
                                      .name = part.display_name(),
                                      .old_name = {},
-                                     .instrument_id = part.instrument_id});
+                                     .instrument_id = part.instrument_id,
+                                     .part_index = static_cast<int>(j)});
   }
 
   return staff_pairs;
@@ -481,7 +486,8 @@ ScoreDiff compute(const Score& before, const Score& after, const Options& option
   // Measure insertions and deletions are read off the alignment itself, which is
   // score-wide. Summing the per-staff counts would multiply every added bar by the
   // number of instruments playing.
-  count_measure_changes(after, staff_pairs, alignment, options, diff.stats);
+  count_measure_changes(after, staff_pairs, alignment, options, diff.stats,
+                        diff.inserted_measures);
 
   for (const auto& change : diff.orchestration.changes) {
     switch (change.kind) {

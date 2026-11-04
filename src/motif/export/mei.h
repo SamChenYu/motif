@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include "motif/score/model.h"
 
@@ -16,5 +17,24 @@ namespace motif::mei {
 /// What motif does not model (dynamics, slurs, lyrics, text, grace notes, ...) is left
 /// out; gaps in a voice become invisible spaces so that every note keeps its onset.
 [[nodiscard]] std::string to_mei(const score::Score& score);
+
+/// An exact time in quarter notes, as num/den in lowest terms.
+struct Quarters {
+  long long num = 0;
+  long long den = 1;
+
+  void add(long long n, long long d);
+  [[nodiscard]] std::string text() const;  ///< "3/2", or "2" for a whole number
+
+  friend bool operator==(const Quarters&, const Quarters&) = default;
+};
+
+/// When each element of `voice` starts in the MEI to_mei writes, in quarter notes from
+/// the barline: exactly what Verovio, and so stave, reads.
+///
+/// motif's ticks are whole numbers, so a septuplet's notes are each a fraction of a
+/// tick short and later onsets drift; these are worked out from the written values and
+/// tuplet ratios instead.
+[[nodiscard]] std::vector<Quarters> onsets(const score::Voice& voice, int division);
 
 }  // namespace motif::mei

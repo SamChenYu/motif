@@ -19,6 +19,8 @@ struct PartChange {
   std::string name;      ///< current name (the new one, for a rename)
   std::string old_name;  ///< previous name, for a rename
   std::string instrument_id;
+  /// The part's index in the newer score's parts, or the older's for a removal.
+  int part_index = -1;
 };
 
 struct OrchestrationChange {
@@ -66,6 +68,10 @@ struct NoteChange {
   std::optional<score::Pitch> after;
   int before_ticks = 0;
   int after_ticks = 0;
+
+  /// True when the whole measure was inserted (for Added) or deleted (for Removed). A
+  /// deleted measure's number is its number in the older score.
+  bool whole_measure = false;
 };
 
 /// A detected exact relationship between a run's before and after material.
@@ -188,6 +194,10 @@ struct ScoreDiff {
   std::vector<KeySigChange> key_sigs;
   std::vector<TimeSigChange> time_sigs;
   Stats stats;
+
+  /// Measures inserted in the newer score, as indices into its staves' measures. Every
+  /// staff gains the bar, so this is score-wide, like the barlines.
+  std::vector<int> inserted_measures;
 
   [[nodiscard]] bool empty() const {
     return orchestration.empty() && staves.empty() && key_sigs.empty() && time_sigs.empty();
