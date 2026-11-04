@@ -1,0 +1,4 @@
+# Compared byte for byte with motif's output, which always ends lines with "\n".
+tests/e2e/expected/*.txt text eol=lf
+# Shell scripts must keep "\n" to run, including under Git for Windows.
+*.sh text eol=lf

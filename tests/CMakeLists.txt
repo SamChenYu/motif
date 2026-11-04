@@ -22,6 +22,14 @@ add_executable(motif_tests
 )
 
 target_link_libraries(motif_tests PRIVATE motif_core Catch2::Catch2WithMain)
+if(WIN32)
+  target_sources(motif_tests PRIVATE ${PROJECT_SOURCE_DIR}/src/utf8.manifest)
+endif()
+
+# A stand-in child process for the subprocess tests, the same on every platform.
+add_executable(motif_test_child support/child.cpp)
+add_dependencies(motif_tests motif_test_child)
+target_compile_definitions(motif_tests PRIVATE MOTIF_TEST_CHILD="$<TARGET_FILE:motif_test_child>")
 
 # The sample concerto doubles as a regression fixture for the parser. It is optional:
 # the test skips itself when the file is absent.
@@ -37,4 +45,11 @@ catch_discover_tests(motif_tests)
 # End-to-end: runs the real binary against a real git repository and compares its
 # output with tests/e2e/expected. Regenerate those files with:
 #   tests/e2e/run_e2e.sh build/src/motif --update
-add_test(NAME e2e COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/e2e/run_e2e.sh $<TARGET_FILE:motif>)
+#
+# It is a POSIX shell script; on Windows it runs under Git for Windows' sh.
+find_program(MOTIF_SH NAMES sh bash HINTS "$ENV{ProgramFiles}/Git/usr/bin" "$ENV{ProgramFiles}/Git/bin")
+if(MOTIF_SH)
+  add_test(NAME e2e COMMAND ${MOTIF_SH} ${CMAKE_CURRENT_SOURCE_DIR}/e2e/run_e2e.sh $<TARGET_FILE:motif>)
+else()
+  message(STATUS "No POSIX shell found; skipping the end-to-end tests")
+endif()

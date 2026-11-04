@@ -12,7 +12,7 @@ MOTIF=${1:?usage: run_e2e.sh <path-to-motif> [--update]}
 UPDATE=${2:-}
 
 case "$MOTIF" in
-  /*) ;;
+  /* | [A-Za-z]:*) ;;
   *) MOTIF="$PWD/$MOTIF" ;;
 esac
 
@@ -40,7 +40,7 @@ export GIT_AUTHOR_DATE='2026-08-09T12:00:00+00:00'
 export GIT_COMMITTER_DATE='2026-08-09T12:00:00+00:00'
 
 cd "$REPO"
-git init -q .
+git -c init.defaultBranch=main init -q .
 git config commit.gpgsign false
 
 cp "$FIXTURES/v1.mscx" concerto.mscx
