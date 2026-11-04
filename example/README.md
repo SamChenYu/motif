@@ -9,14 +9,14 @@ Two versions of one score, to try motif on:
 
 The edits in `beethoven-modified.mscz`:
 
-| Instrument | Bar | Edit | In stave |
-| --- | --- | --- | --- |
-| Violin 1 | 19 | two notes changed | yellow on both sides |
-| Violin 2 | 18 | staccatos added | yellow on both sides |
-| Violin 2 | 21–22 | the answer to the opening figure moved up a whole step | yellow on both sides |
-| Viola | 21 | joins the opening figure, where it rested | green, on the right |
-| Violoncello | 18 | the repeated B flats removed | red, on the left |
-| Violin 1 | 318 | one note raised, in the second movement (Adagio) | yellow on both sides |
+| Instrument | Bar | Edit |
+| --- | --- | --- |
+| Violin 1 | 19 | two notes changed |
+| Violin 2 | 18 | staccatos added |
+| Violin 2 | 21–22 | the answer to the opening figure moved up a whole step |
+| Viola | 21 | joins the opening figure, where it rested |
+| Violoncello | 18 | the repeated B flats removed |
+| Violin 1 | 318 | one note raised, in the second movement (Adagio) |
 
 ## Trying it
 
@@ -53,9 +53,11 @@ cp ../beethoven-modified.mscz beethoven-op18no1.mscz
 The path to motif depends on how it was built: `build/bin/Release/` with Visual Studio,
 `build/bin/` otherwise.
 
-`motif diff` opens the score in stave at the first change, with the committed version on the
-left and the modified one on the right, scrolling together. `n` and `N` jump between changes,
-the arrow keys move by bar and staff, `+` and `-` zoom, and `q` quits. Run it in a terminal that
+`motif diff` opens the score in stave just before the first change. It reads straight through:
+bars 18–19 play as committed (labelled HEAD, the old notes in red), then as modified (labelled
+working tree, the new notes in green), and the music carries on to the next change at bars 21–22.
+`n` and `N` jump between changes, the arrow keys move by bar and staff, `+` and `-` zoom, and `q`
+quits. `motif diff --split` shows the two versions side by side instead. Run it in a terminal that
 shows sixel images (Windows Terminal 1.22+, WezTerm, iTerm2) for proper notation.
 
 Then try:

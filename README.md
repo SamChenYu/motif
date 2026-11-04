@@ -66,14 +66,16 @@ Other changed files:
 Show note-level changes between HEAD and the working tree.
 
 In a terminal, each changed score opens engraved in [stave](https://github.com/SamChenYu/stave),
-with the two versions side by side, like a side-by-side diff in an editor:
+as one score that reads straight through, the way a unified diff reads down the page:
 
-- **left**, the older version: removed notes in red, and changed notes in yellow as they were
-- **right**, the newer version: added notes in green, and changed notes in yellow as they are now
+```
+| 17 | 18 19 (HEAD) ¦ 18 19 (working tree) | 20 | 21 22 (HEAD) ¦ 21 22 (working tree) | 23 | ...
+```
 
-Deleted bars and removed instruments are red on the left, and inserted bars and added instruments
-green on the right. The two sides scroll together, bar for bar, even where bars were inserted or
-deleted. It opens on the first change.
+Unchanged bars appear once. Each changed stretch appears twice in a row, first as it was, with its
+removed and changed notes in red, then, after a dashed barline, as it is, with its added and changed
+notes in green. Deleted bars are red and inserted ones green; an added instrument is green throughout.
+The status line shows each bar's own number. It opens just before the first change.
 
 | Key | Does |
 | --- | --- |
@@ -84,8 +86,10 @@ deleted. It opens on the first change.
 | + - | zoom |
 | q | next score, or quit |
 
-Keys move the newer version, and the older follows it. Each side has half the screen, so zoom out
-with `-` to see more bars at once.
+`--split` shows the two versions side by side instead, like an editor's side-by-side diff: the older
+on the left, with removed notes in red and changed notes in yellow as they were, and the newer on the
+right, with added notes in green and changed notes in yellow as they are. The keys move the right side
+and the left follows it, bar for bar. Each side has half the screen, so zoom out with `-` to see more.
 
 `--raw` prints the text view below instead. So do `--stat`, `--orchestration` and `--key`,
 and any `motif diff` whose output isn't a terminal (piped, or redirected to a file):
