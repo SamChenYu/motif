@@ -75,7 +75,12 @@ as one score that reads straight through, the way a unified diff reads down the 
 Unchanged bars appear once. Each changed stretch appears twice in a row, like a unified diff's red and
 green lines: first as it was, on a red background with its removed and changed notes in red, then,
 after a dashed barline, as it is, on a green background with its added and changed notes in green. Deleted bars are red and inserted ones green; an added instrument is green throughout.
-The status line shows each bar's own number. It opens just before the first change.
+The status line shows each bar's own number.
+
+Like `git diff`, it shows only the changes, with two unchanged bars of context either side; a double
+barline and a note such as "… 296 bars unchanged" mark where bars are left out. `-U<n>` (or
+`--unified=<n>`) shows n bars of context instead, and `--full` the whole score. Only what's shown has
+to be engraved, so even a long score opens in well under a second.
 
 | Key | Does |
 | --- | --- |

@@ -53,7 +53,8 @@ cp ../beethoven-modified.mscz beethoven-op18no1.mscz
 The path to motif depends on how it was built: `build/bin/Release/` with Visual Studio,
 `build/bin/` otherwise.
 
-`motif diff` opens the score in stave just before the first change. It reads straight through:
+`motif diff` opens the score in stave, showing only the changes and two bars either side of each,
+as `git diff` shows only changed lines (`--full` shows the whole quartet). It reads straight through:
 bars 18–19 play as committed (on red, labelled HEAD, the old notes in red), then as modified (on
 green, labelled working tree, the new notes in green), and the music carries on to the next change
 at bars 21–22.
