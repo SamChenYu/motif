@@ -19,9 +19,10 @@ add_executable(motif_tests
   test_transform.cpp
   test_terminal.cpp
   test_options.cpp
+  test_mei.cpp
 )
 
-target_link_libraries(motif_tests PRIVATE motif_core Catch2::Catch2WithMain)
+target_link_libraries(motif_tests PRIVATE motif_core pugixml::pugixml Catch2::Catch2WithMain)
 if(WIN32)
   target_sources(motif_tests PRIVATE ${PROJECT_SOURCE_DIR}/src/utf8.manifest)
 endif()
@@ -36,6 +37,15 @@ target_compile_definitions(motif_tests PRIVATE MOTIF_TEST_CHILD="$<TARGET_FILE:m
 set(MOTIF_SAMPLE_SCORE "${CMAKE_SOURCE_DIR}/tests/Piano Concerto in G Minor.mscz")
 if(EXISTS "${MOTIF_SAMPLE_SCORE}")
   target_compile_definitions(motif_tests PRIVATE MOTIF_SAMPLE_SCORE="${MOTIF_SAMPLE_SCORE}")
+endif()
+
+# With stave built, check that it engraves motif's MEI and finds every mark motif makes.
+if(TARGET stave)
+  target_sources(motif_tests PRIVATE test_engrave.cpp)
+  add_dependencies(motif_tests stave)
+  target_compile_definitions(motif_tests PRIVATE
+    MOTIF_STAVE_EXE="$<TARGET_FILE:stave>"
+    MOTIF_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/e2e/fixtures")
 endif()
 
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)

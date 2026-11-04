@@ -8,6 +8,7 @@ add_library(motif_core STATIC
   motif/diff/note_diff.cpp
   motif/diff/engine.cpp
   motif/analysis/transform.cpp
+  motif/export/mei.cpp
   motif/render/terminal.cpp
   motif/render/pager.cpp
   motif/render/notation.cpp
