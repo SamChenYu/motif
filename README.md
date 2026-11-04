@@ -65,9 +65,15 @@ Other changed files:
 #### `motif diff`
 Show note-level changes between HEAD and the working tree.
 
-In a terminal, each changed score opens engraved in [stave](https://github.com/SamChenYu/stave):
-added notes in green, changed notes in yellow, and bars that lost notes in red. It opens on the
-first change.
+In a terminal, each changed score opens engraved in [stave](https://github.com/SamChenYu/stave),
+with the two versions side by side, like a side-by-side diff in an editor:
+
+- **left**, the older version: removed notes in red, and changed notes in yellow as they were
+- **right**, the newer version: added notes in green, and changed notes in yellow as they are now
+
+Deleted bars and removed instruments are red on the left, and inserted bars and added instruments
+green on the right. The two sides scroll together, bar for bar, even where bars were inserted or
+deleted. It opens on the first change.
 
 | Key | Does |
 | --- | --- |
@@ -78,6 +84,8 @@ first change.
 | + - | zoom |
 | q | next score, or quit |
 
+Keys move the newer version, and the older follows it. Each side has half the screen, so zoom out
+with `-` to see more bars at once.
 
 `--raw` prints the text view below instead. So do `--stat`, `--orchestration` and `--key`,
 and any `motif diff` whose output isn't a terminal (piped, or redirected to a file):

@@ -11,12 +11,12 @@ The edits in `beethoven-modified.mscz`:
 
 | Instrument | Bar | Edit | In stave |
 | --- | --- | --- | --- |
-| Violin 1 | 19 | two notes changed | yellow |
-| Violin 2 | 18 | staccatos added | yellow |
-| Violin 2 | 21–22 | the answer to the opening figure moved up a whole step | yellow |
-| Viola | 21 | joins the opening figure, where it rested | green |
-| Violoncello | 18 | the repeated B flats removed | red bar |
-| Violin 1 | 318 | one note raised, in the second movement (Adagio) | yellow |
+| Violin 1 | 19 | two notes changed | yellow on both sides |
+| Violin 2 | 18 | staccatos added | yellow on both sides |
+| Violin 2 | 21–22 | the answer to the opening figure moved up a whole step | yellow on both sides |
+| Viola | 21 | joins the opening figure, where it rested | green, on the right |
+| Violoncello | 18 | the repeated B flats removed | red, on the left |
+| Violin 1 | 318 | one note raised, in the second movement (Adagio) | yellow on both sides |
 
 ## Trying it
 
@@ -53,7 +53,8 @@ cp ../beethoven-modified.mscz beethoven-op18no1.mscz
 The path to motif depends on how it was built: `build/bin/Release/` with Visual Studio,
 `build/bin/` otherwise.
 
-`motif diff` opens the score in stave, at the first change. `n` and `N` jump between changes,
+`motif diff` opens the score in stave at the first change, with the committed version on the
+left and the modified one on the right, scrolling together. `n` and `N` jump between changes,
 the arrow keys move by bar and staff, `+` and `-` zoom, and `q` quits. Run it in a terminal that
 shows sixel images (Windows Terminal 1.22+, WezTerm, iTerm2) for proper notation.
 
