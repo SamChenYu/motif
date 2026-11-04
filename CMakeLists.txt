@@ -23,6 +23,10 @@ if(MSVC)
 endif()
 
 option(MOTIF_BUILD_TESTS "Build the motif test suite" ON)
+# Every program lands in one folder: motif finds stave, and stave its verovio-data/,
+# next to itself.
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
 option(MOTIF_WITH_STAVE "Build stave, the notation pager (pulls in Verovio and lunasvg)" ON)
 
 # ---------------------------------------------------------------------------

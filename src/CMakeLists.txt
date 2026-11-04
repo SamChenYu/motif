@@ -48,3 +48,10 @@ if(WIN32)
   target_sources(motif PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/utf8.manifest)
 endif()
 target_link_libraries(motif PRIVATE motif_core)
+
+# `motif diff` shows scores through stave, run as a program of its own, so building
+# motif builds stave too.
+if(TARGET stave)
+  add_dependencies(motif stave)
+  target_compile_definitions(motif_core PRIVATE MOTIF_HAVE_STAVE=1)
+endif()
