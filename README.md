@@ -72,9 +72,9 @@ as one score that reads straight through, the way a unified diff reads down the 
 | 17 | 18 19 (HEAD) ¦ 18 19 (working tree) | 20 | 21 22 (HEAD) ¦ 21 22 (working tree) | 23 | ...
 ```
 
-Unchanged bars appear once. Each changed stretch appears twice in a row, first as it was, with its
-removed and changed notes in red, then, after a dashed barline, as it is, with its added and changed
-notes in green. Deleted bars are red and inserted ones green; an added instrument is green throughout.
+Unchanged bars appear once. Each changed stretch appears twice in a row, like a unified diff's red and
+green lines: first as it was, on a red background with its removed and changed notes in red, then,
+after a dashed barline, as it is, on a green background with its added and changed notes in green. Deleted bars are red and inserted ones green; an added instrument is green throughout.
 The status line shows each bar's own number. It opens just before the first change.
 
 | Key | Does |

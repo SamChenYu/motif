@@ -54,8 +54,9 @@ The path to motif depends on how it was built: `build/bin/Release/` with Visual 
 `build/bin/` otherwise.
 
 `motif diff` opens the score in stave just before the first change. It reads straight through:
-bars 18–19 play as committed (labelled HEAD, the old notes in red), then as modified (labelled
-working tree, the new notes in green), and the music carries on to the next change at bars 21–22.
+bars 18–19 play as committed (on red, labelled HEAD, the old notes in red), then as modified (on
+green, labelled working tree, the new notes in green), and the music carries on to the next change
+at bars 21–22.
 `n` and `N` jump between changes, the arrow keys move by bar and staff, `+` and `-` zoom, and `q`
 quits. `motif diff --split` shows the two versions side by side instead. Run it in a terminal that
 shows sixel images (Windows Terminal 1.22+, WezTerm, iTerm2) for proper notation.
