@@ -59,8 +59,28 @@ Other changed files:
 #### `motif diff`
 Show note-level changes between HEAD and the working tree.
 
+In a terminal, each changed score opens engraved in [stave](https://github.com/SamChenYu/stave):
+added notes in green, changed notes in yellow, and bars that lost notes in red. It opens on the
+first change.
+
+| Key | Does |
+| --- | --- |
+| `n` / `N` | next / previous change |
+| ← → / h l | one bar |
+| ↑ ↓ / k j | one staff |
+| PgUp PgDn / Space | one screen |
+| + - | zoom |
+| q | next score, or quit |
+
+Notes are drawn at concert pitch. stave draws pixels in terminals that show sixel images
+(Windows Terminal 1.22+, WezTerm, foot, iTerm2), and falls back to braille characters elsewhere.
+After you quit, motif prints a summary of the counts.
+
+`--raw` prints the text view below instead. So do `--stat`, `--orchestration` and `--key`,
+and any `motif diff` whose output isn't a terminal (piped, or redirected to a file):
+
 ```console
-$ motif diff
+$ motif diff --raw
 Piano Concerto in G Minor
 HEAD → working tree
 ───────────────────
@@ -153,5 +173,22 @@ which itself nests other dependencies. Submodules must be initialized **recursiv
 $ git submodule update --init --recursive
 ```
 
+Requires CMake 3.24+ and a C++20 compiler (MSVC 2022, GCC 11+ or Clang 14+), on Windows, macOS
+or Linux.
+
+```console
+$ cmake -S . -B build
+$ cmake --build build --config Release
+$ ctest --test-dir build -C Release --output-on-failure
+```
+
+The programs land together in `build/bin/` (`build/bin/Release/` with Visual Studio): `motif`,
+`stave`, and `verovio-data/`, which holds stave's music fonts. Keep them together when
+installing. motif looks for stave next to itself, then on `PATH`, or wherever `MOTIF_STAVE`
+points.
+
 stave pulls in Verovio, which takes a few minutes to compile the first time. Configure with
-`-DMOTIF_WITH_STAVE=OFF` to build motif without it.
+`-DMOTIF_WITH_STAVE=OFF` to build motif without it; `motif diff` then prints text.
+
+Set `MOTIF_DUMP_NOTATION` to a folder to keep the MEI score and marks file that motif hands
+stave. `stave score.mei --marks marks.json --png out.png` redraws them without a terminal.
