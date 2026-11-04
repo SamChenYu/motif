@@ -18,6 +18,25 @@ namespace motif::mei {
 /// out; gaps in a voice become invisible spaces so that every note keeps its onset.
 [[nodiscard]] std::string to_mei(const score::Score& score);
 
+/// One bar of a score made from bars of other scores (to_mei with bars, below).
+struct Bar {
+  const score::Score* score = nullptr;  ///< the score the bar is taken from
+  int measure = 0;                      ///< the measure's index in each of its staves
+  /// For each staff written (the layout's, in order), the index of the staff of `score`
+  /// it is taken from, or -1 to leave it empty in this bar.
+  std::vector<int> staves;
+  int number = 1;           ///< the measure's number: what stave's marks and --bar find it by
+  std::string label;        ///< what to call it on screen, if not its number ("" for that)
+  std::string text;         ///< words above the top staff at its start ("" for none)
+  bool dashed_end = false;  ///< a dashed barline after it
+};
+
+/// Writes a score made of bars taken from one or more scores, in order, on the staves of
+/// `layout` (their names, braces and order). Key and time signatures and clefs are written
+/// wherever they differ from the bar before, so bars can come from different versions.
+/// Returns "" if any bar names a measure its score doesn't have.
+[[nodiscard]] std::string to_mei(const score::Score& layout, const std::vector<Bar>& bars);
+
 /// An exact time in quarter notes, as num/den in lowest terms.
 struct Quarters {
   long long num = 0;

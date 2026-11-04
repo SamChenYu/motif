@@ -298,9 +298,40 @@ std::unordered_map<const Note*, int> shown_accidentals(const score::Measure& mea
   return shown;
 }
 
+/// What is in force at a measure of one staff: the clef, carried over from wherever it
+/// was last declared. Worked out once per staff, as bars are asked for.
+class ClefsInForce {
+ public:
+  const std::string& at(const score::Score& score, std::size_t staff, std::size_t measure) {
+    auto& clefs = cache_[{&score, staff}];
+    if (clefs.empty()) {
+      const auto& s = score.staves[staff];
+      std::string clef = s.default_clef;
+      for (const auto& m : s.measures) {
+        if (m.clef && !m.clef->concert.empty()) clef = m.clef->concert;
+        clefs.push_back(clef);
+      }
+    }
+    return clefs[std::min(measure, clefs.size() - 1)];
+  }
+
+ private:
+  std::map<std::pair<const score::Score*, std::size_t>, std::vector<std::string>> cache_;
+};
+
+/// The time signature in force at each measure of a score, from its top staff.
+score::TimeSig meter_at(const score::Score& score, std::size_t measure) {
+  score::TimeSig meter;
+  const auto& measures = score.staves.front().measures;
+  for (std::size_t m = 0; m <= measure && m < measures.size(); ++m) {
+    if (measures[m].time_sig) meter = *measures[m].time_sig;
+  }
+  return meter;
+}
+
 class Writer {
  public:
-  explicit Writer(const score::Score& score) : score_(score) {}
+  Writer(const score::Score& layout, const std::vector<Bar>& bars) : layout_(layout), bars_(bars) {}
 
   std::string write() {
     pugi::xml_document doc;
@@ -309,7 +340,7 @@ class Writer {
     mei.append_attribute("meiversion") = "5.0";
 
     auto title = mei.append_child("meiHead").append_child("fileDesc").append_child("titleStmt");
-    title.append_child("title").text() = score_.title().c_str();
+    title.append_child("title").text() = layout_.title().c_str();
 
     auto section = mei.append_child("music")
                        .append_child("body")
@@ -318,10 +349,9 @@ class Writer {
     write_score_def(section.append_child("scoreDef"));
     section = section.append_child("section");
 
-    const auto& first = score_.staves.front();
-    for (std::size_t m = 0; m < first.measures.size(); ++m) {
-      if (m > 0) write_changes(section, m);
-      write_measure(section, m);
+    for (std::size_t b = 0; b < bars_.size(); ++b) {
+      if (b > 0) write_changes(section, bars_[b]);
+      write_measure(section, bars_[b]);
     }
 
     std::ostringstream out;
@@ -330,29 +360,43 @@ class Writer {
   }
 
  private:
-  [[nodiscard]] int key_at(std::size_t m) const {
-    const auto& measure = score_.staves.front().measures[m];
-    return score_.key_signature(measure.number).value_or(0);
+  [[nodiscard]] static int key_at(const Bar& bar) {
+    const auto& measure = bar.score->staves.front().measures[static_cast<std::size_t>(bar.measure)];
+    return bar.score->key_signature(measure.number).value_or(0);
+  }
+
+  /// The staff of the bar's score that output staff `s` is taken from, or nothing.
+  [[nodiscard]] static const score::Staff* source(const Bar& bar, std::size_t s) {
+    if (s >= bar.staves.size() || bar.staves[s] < 0) return nullptr;
+    const auto index = static_cast<std::size_t>(bar.staves[s]);
+    return index < bar.score->staves.size() ? &bar.score->staves[index] : nullptr;
+  }
+
+  /// The clef in force for output staff `s` in this bar, or "" if the bar leaves it empty.
+  [[nodiscard]] std::string clef_at(const Bar& bar, std::size_t s) {
+    if (source(bar, s) == nullptr) return "";
+    return clefs_in_force_.at(*bar.score, static_cast<std::size_t>(bar.staves[s]),
+                              static_cast<std::size_t>(bar.measure));
   }
 
   void write_score_def(pugi::xml_node def) {
-    key_ = key_at(0);
+    const Bar& first = bars_.front();
+    key_ = key_at(first);
     def.append_child("keySig").append_attribute("sig") = key_sig(key_).c_str();
 
-    const auto& first = score_.staves.front().measures.front();
-    if (first.time_sig) meter_ = *first.time_sig;
+    meter_ = meter_at(*first.score, static_cast<std::size_t>(first.measure));
     auto meter = def.append_child("meterSig");
     meter.append_attribute("count") = meter_.n;
     meter.append_attribute("unit") = meter_.d;
 
     auto group = def.append_child("staffGrp");
-    for (std::size_t s = 0; s < score_.staves.size();) {
+    for (std::size_t s = 0; s < layout_.staves.size();) {
       // A part's staves, in a row: a piano's two, or a lone flute's one.
-      const int part = score_.staves[s].part_index;
+      const int part = layout_.staves[s].part_index;
       std::size_t end = s + 1;
-      while (end < score_.staves.size() && part >= 0 && score_.staves[end].part_index == part) ++end;
+      while (end < layout_.staves.size() && part >= 0 && layout_.staves[end].part_index == part) ++end;
 
-      const auto* owner = score_.part_for_staff(score_.staves[s].id);
+      const auto* owner = layout_.part_for_staff(layout_.staves[s].id);
       const std::string label = owner != nullptr ? owner->display_name() : "";
       auto parent = group;
       if (end - s > 1) {
@@ -367,10 +411,8 @@ class Writer {
         staff_def.append_attribute("lines") = 5;
         if (end - s == 1 && !label.empty()) staff_def.append_child("label").text() = label.c_str();
 
-        const auto& staff = score_.staves[i];
-        std::string clef = staff.default_clef;
-        const auto& opening = staff.measures.front();
-        if (opening.clef && !opening.clef->concert.empty()) clef = opening.clef->concert;
+        std::string clef = clef_at(first, i);
+        if (clef.empty()) clef = layout_.staves[i].default_clef;
         clefs_.push_back(clef);
         set_clef(staff_def.append_child("clef"), clef_spec(clef));
       }
@@ -378,12 +420,11 @@ class Writer {
     }
   }
 
-  /// A new key or time signature from measure `m`, as a scoreDef before it.
-  void write_changes(pugi::xml_node section, std::size_t m) {
-    const int key = key_at(m);
-    const auto& measure = score_.staves.front().measures[m];
-    const bool meter_changed =
-        measure.time_sig && (measure.time_sig->n != meter_.n || measure.time_sig->d != meter_.d);
+  /// A new key or time signature from this bar on, as a scoreDef before it.
+  void write_changes(pugi::xml_node section, const Bar& bar) {
+    const int key = key_at(bar);
+    const auto meter = meter_at(*bar.score, static_cast<std::size_t>(bar.measure));
+    const bool meter_changed = meter.n != meter_.n || meter.d != meter_.d;
     if (key == key_ && !meter_changed) return;
 
     auto def = section.append_child("scoreDef");
@@ -392,37 +433,42 @@ class Writer {
       def.append_child("keySig").append_attribute("sig") = key_sig(key).c_str();
     }
     if (meter_changed) {
-      meter_ = *measure.time_sig;
-      auto meter = def.append_child("meterSig");
-      meter.append_attribute("count") = meter_.n;
-      meter.append_attribute("unit") = meter_.d;
+      meter_ = meter;
+      auto node = def.append_child("meterSig");
+      node.append_attribute("count") = meter_.n;
+      node.append_attribute("unit") = meter_.d;
     }
   }
 
-  void write_measure(pugi::xml_node section, std::size_t m) {
-    const auto& first = score_.staves.front().measures[m];
-    auto measure = section.append_child("measure");
-    measure.append_attribute("n") = first.number;
-    if (first.irregular) measure.append_attribute("metcon") = "false";
+  void write_measure(pugi::xml_node section, const Bar& bar) {
+    const auto m = static_cast<std::size_t>(bar.measure);
+    const auto& top = bar.score->staves.front().measures[m];
+    division_ = bar.score->division;
 
-    for (std::size_t s = 0; s < score_.staves.size(); ++s) {
+    auto measure = section.append_child("measure");
+    measure.append_attribute("n") = bar.number;
+    if (!bar.label.empty()) measure.append_attribute("label") = bar.label.c_str();
+    if (top.irregular) measure.append_attribute("metcon") = "false";
+    if (bar.dashed_end) measure.append_attribute("right") = "dashed";
+
+    for (std::size_t s = 0; s < layout_.staves.size(); ++s) {
       auto staff = measure.append_child("staff");
       staff.append_attribute("n") = static_cast<int>(s + 1);
 
-      const auto& measures = score_.staves[s].measures;
-      if (m >= measures.size() || measures[m].voices.empty()) {
+      const auto* from = source(bar, s);
+      if (from == nullptr || m >= from->measures.size() || from->measures[m].voices.empty()) {
         auto layer = staff.append_child("layer");
         layer.append_attribute("n") = 1;
         layer.append_child("mSpace");
         continue;
       }
-      const auto& here = measures[m];
+      const auto& here = from->measures[m];
 
       // A clef change takes effect at the start of the bar.
       std::optional<ClefSpec> clef_change;
-      if (m > 0 && here.clef && !here.clef->concert.empty() && here.clef->concert != clefs_[s]) {
-        clefs_[s] = here.clef->concert;
-        clef_change = clef_spec(clefs_[s]);
+      if (const std::string clef = clef_at(bar, s); !clef.empty() && clef != clefs_[s]) {
+        clefs_[s] = clef;
+        clef_change = clef_spec(clef);
       }
 
       const auto shown = shown_accidentals(here, key_);
@@ -432,6 +478,15 @@ class Writer {
         if (v == 0 && clef_change) set_clef(layer.append_child("clef"), *clef_change);
         write_layer(layer, here.voices[v], shown);
       }
+    }
+
+    // Words over the top staff, such as which version a bar is from.
+    if (!bar.text.empty()) {
+      auto dir = measure.append_child("dir");
+      dir.append_attribute("staff") = 1;
+      dir.append_attribute("tstamp") = 1;
+      dir.append_attribute("place") = "above";
+      dir.text() = bar.text.c_str();
     }
   }
 
@@ -453,7 +508,7 @@ class Writer {
       // notes after it keep their onsets.
       if (el.onset > cursor) {
         for (const auto& dur :
-             space_values(written_gap(el.onset - cursor, open_ids, voice), score_.division)) {
+             space_values(written_gap(el.onset - cursor, open_ids, voice), division_)) {
           container().append_child("space").append_attribute("dur") = dur.c_str();
         }
       }
@@ -479,7 +534,7 @@ class Writer {
       return;
     }
 
-    const Value value = element_value(el, voice, score_.division);
+    const Value value = element_value(el, voice, division_);
     const auto set_value = [&](pugi::xml_node node) {
       node.append_attribute("dur") = value.dur.c_str();
       if (value.dots > 0) node.append_attribute("dots") = value.dots;
@@ -540,7 +595,10 @@ class Writer {
     }
   }
 
-  const score::Score& score_;
+  const score::Score& layout_;
+  const std::vector<Bar>& bars_;
+  ClefsInForce clefs_in_force_;
+  int division_ = 480;
   int key_ = 0;
   score::TimeSig meter_;
   std::vector<std::string> clefs_;  ///< each staff's clef in force, as MuseScore names it
@@ -597,7 +655,30 @@ std::vector<Quarters> onsets(const score::Voice& voice, int division) {
 
 std::string to_mei(const score::Score& score) {
   if (score.staves.empty() || score.staves.front().measures.empty()) return {};
-  return Writer(score).write();
+  std::vector<int> staves(score.staves.size());
+  for (std::size_t s = 0; s < staves.size(); ++s) staves[s] = static_cast<int>(s);
+  std::vector<Bar> bars;
+  const auto& measures = score.staves.front().measures;
+  for (std::size_t m = 0; m < measures.size(); ++m) {
+    Bar bar;
+    bar.score = &score;
+    bar.measure = static_cast<int>(m);
+    bar.staves = staves;
+    bar.number = measures[m].number;
+    bars.push_back(std::move(bar));
+  }
+  return Writer(score, bars).write();
+}
+
+std::string to_mei(const score::Score& layout, const std::vector<Bar>& bars) {
+  if (layout.staves.empty() || bars.empty()) return {};
+  for (const auto& bar : bars) {
+    if (bar.score == nullptr || bar.score->staves.empty() || bar.measure < 0 ||
+        static_cast<std::size_t>(bar.measure) >= bar.score->staves.front().measures.size()) {
+      return {};
+    }
+  }
+  return Writer(layout, bars).write();
 }
 
 }  // namespace motif::mei
