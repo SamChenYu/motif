@@ -216,3 +216,52 @@ TEST_CASE("stave compares the concerto with every note raised, finding every not
   CHECK(r.ok());
 }
 #endif
+
+TEST_CASE("stave shows the unified fixture diffs, finding every mark", "[engrave]") {
+  const auto v1 = load(fs::path(MOTIF_FIXTURES) / "v1.mscx");
+  for (const char* name : {"v2_transposed.mscx", "v3_no_oboe.mscx"}) {
+    INFO(name);
+    const auto after = load(fs::path(MOTIF_FIXTURES) / name);
+    const auto u = motif::render::unified_diff(motif::diff::compute(v1, after), v1, after, "HEAD",
+                                               "working tree");
+    INFO(u.json);
+    CHECK(u.dropped == 0);
+    if (u.marks == 0) continue;  // only an instrument removed: nothing to draw
+
+    TempDir dir;
+    const auto r = run_stave(dir, u.mei, u.json);
+    INFO(r.err);
+    CHECK(r.ok());
+  }
+}
+
+#ifdef MOTIF_SAMPLE_SCORE
+TEST_CASE("stave shows the concerto with every note raised as one unified score", "[engrave][sample]") {
+  const auto before = load(MOTIF_SAMPLE_SCORE);
+  auto after = before;
+  int raised = 0;
+  for (auto& staff : after.staves) {
+    for (auto& measure : staff.measures) {
+      for (auto& voice : measure.voices) {
+        for (auto& el : voice.elements) {
+          for (auto& note : el.notes) {
+            note.pitch.midi += 1;
+            note.pitch.tpc += 7;
+            ++raised;
+          }
+        }
+      }
+    }
+  }
+
+  const auto u = motif::render::unified_diff(motif::diff::compute(before, after), before, after,
+                                             "HEAD", "working tree");
+  CHECK(u.dropped == 0);
+  CHECK(u.marks == 2 * raised);
+
+  TempDir dir;
+  const auto r = run_stave(dir, u.mei, u.json);
+  INFO(r.err);
+  CHECK(r.ok());
+}
+#endif

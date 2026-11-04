@@ -1,5 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include <pugixml.hpp>
+
 #include <string>
 
 #include "motif/diff/engine.h"
@@ -214,4 +216,68 @@ TEST_CASE("side by side, a removed instrument is red all the way through", "[sta
   INFO(c.before_json);
   CHECK(contains(c.before_json, R"({"tone": "removed", "bar": 1, "to": 3, "staff": 2})"));
   CHECK(c.after_json == "[\n]\n");
+}
+
+TEST_CASE("unified, a changed bar appears as it was and then as it is", "[stave-marks][unified]") {
+  auto edited = baseline();
+  edited[2].notes[1] = TestNote{70, 12};  // A4 becomes Bb4, on beat 2 of bar 3
+
+  const auto before = parse(build_score({violin(baseline())}));
+  const auto after = parse(build_score({violin(edited)}));
+  const auto u = motif::render::unified_diff(compute(before, after), before, after, "HEAD", "now");
+
+  INFO(u.json);
+  CHECK(u.hunks == 1);
+  CHECK(u.dropped == 0);
+  // Bars 1 and 2 once, then bar 3 as it was (the score's bar 3) and as it is (bar 4).
+  CHECK(contains(u.json, R"({"tone": "removed", "bar": 3, "staff": 1, "voice": 1, "at": "1", "pitch": 69})"));
+  CHECK(contains(u.json, R"({"tone": "added", "bar": 4, "staff": 1, "voice": 1, "at": "1", "pitch": 70})"));
+  CHECK(u.marks == 2);
+  REQUIRE(u.start_bar.has_value());
+  CHECK(*u.start_bar == 2);  // a bar before the change
+
+  pugi::xml_document doc;
+  REQUIRE(doc.load_string(u.mei.c_str()));
+  const auto measures = doc.select_nodes("//section/measure");
+  REQUIRE(measures.size() == 4);
+  CHECK(std::string(measures[2].node().attribute("label").as_string()) == "3");
+  CHECK(std::string(measures[3].node().attribute("label").as_string()) == "3");
+  CHECK(std::string(measures[3].node().attribute("n").as_string()) == "4");
+  CHECK(std::string(measures[2].node().attribute("right").as_string()) == "dashed");
+  CHECK(std::string(measures[2].node().child("dir").text().as_string()) == "HEAD");
+  CHECK(std::string(measures[3].node().child("dir").text().as_string()) == "now");
+  CHECK_FALSE(measures[1].node().child("dir"));
+}
+
+TEST_CASE("unified, deleted bars are red and inserted ones green", "[stave-marks][unified]") {
+  auto edited = baseline();
+  edited.erase(edited.begin() + 1);  // bar 2 deleted
+  edited.push_back(TestMeasure{.eid = "NEW", .notes = scale_run(64, 18), .element_prefix = "new"});
+
+  const auto before = parse(build_score({violin(baseline())}));
+  const auto after = parse(build_score({violin(edited)}));
+  const auto u = motif::render::unified_diff(compute(before, after), before, after, "HEAD", "now");
+
+  INFO(u.json);
+  // Bar 1, the deleted bar 2, old bar 3 (now bar 2), then the inserted bar.
+  CHECK(u.hunks == 2);
+  CHECK(contains(u.json, R"({"tone": "removed", "bar": 2})"));
+  CHECK(contains(u.json, R"({"tone": "added", "bar": 4})"));
+}
+
+TEST_CASE("unified, an added instrument is green wherever the new version shows", "[stave-marks][unified]") {
+  auto edited = baseline();
+  edited[0].notes[0] = TestNote{62, 16};  // and bar 1 of the violin changes
+
+  const auto before = parse(build_score({violin(baseline())}));
+  const auto after = parse(build_score({violin(edited), cello(baseline())}));
+  const auto u = motif::render::unified_diff(compute(before, after), before, after, "HEAD", "now");
+
+  INFO(u.json);
+  // Old bar 1 (no cello), new bar 1, bars 2 and 3: the cello is green in output bars 2 to 4.
+  CHECK(contains(u.json, R"({"tone": "added", "bar": 2, "to": 4, "staff": 2})"));
+
+  pugi::xml_document doc;
+  REQUIRE(doc.load_string(u.mei.c_str()));
+  CHECK(doc.select_node("//section/measure[1]/staff[@n='2']/layer/mSpace"));
 }

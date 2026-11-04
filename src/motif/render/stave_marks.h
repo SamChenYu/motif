@@ -60,4 +60,26 @@ struct StaveComparison {
                                                const score::Score& before,
                                                const score::Score& after);
 
+/// A diff as one score that reads straight through, the way a unified diff reads down
+/// the page: unchanged bars once, and each changed stretch twice in a row, first as it
+/// was, its removed and changed notes in red, then as it is, its added and changed notes
+/// in green. Inserted bars are green and deleted ones red. Added instruments are green
+/// throughout; removed ones aren't shown.
+struct UnifiedDiff {
+  std::string mei;   ///< the score, for stave
+  std::string json;  ///< stave's --marks for it
+  /// Where to open: a bar before the first change (as stave's --bar), and its top staff.
+  std::optional<int> start_bar;
+  int start_staff = 1;
+  int hunks = 0;    ///< how many changed stretches
+  int marks = 0;    ///< how many marks the file holds
+  int dropped = 0;  ///< changes left out because no note matched them
+};
+
+/// Builds the unified view of `diff`. `before_text` and `after_text` label the two
+/// halves of each changed stretch, above the top staff ("HEAD", "working tree").
+[[nodiscard]] UnifiedDiff unified_diff(const diff::ScoreDiff& diff, const score::Score& before,
+                                       const score::Score& after, const std::string& before_text,
+                                       const std::string& after_text);
+
 }  // namespace motif::render
