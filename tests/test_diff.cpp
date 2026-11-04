@@ -294,3 +294,15 @@ TEST_CASE("without measure ids, an inserted bar is still an insertion", "[diff]"
   CHECK(d.stats.measures_removed == 0);
   CHECK(d.inserted_measures == std::vector<int>{2});
 }
+
+TEST_CASE("a rest filled with notes counts only as notes added", "[diff]") {
+  auto after_measures = baseline_measures();
+  after_measures[1].notes = scale_run(72, 14);  // bar 2's whole-bar rest becomes a run
+
+  const auto before = parse(build_score({violin(baseline_measures())}));
+  const auto after = parse(build_score({violin(after_measures)}));
+  const auto d = compute(before, after);
+
+  CHECK(d.stats.notes_added == 4);
+  CHECK(d.stats.notes_changed == 0);
+}

@@ -147,8 +147,9 @@ void diff_notes(const Element& before, const Element& after, int measure_number,
     if (!after_used[j]) emit(NoteChange::Kind::Added, nullptr, &after.notes[j]);
   }
 
-  // A chord whose pitches all survived but whose length changed is a rhythmic edit.
-  if (before.ticks != after.ticks && !after.notes.empty()) {
+  // A chord whose pitches all survived but whose length changed is a rhythmic edit. A
+  // rest that became a chord is not: its notes are simply added.
+  if (before.ticks != after.ticks && !before.notes.empty() && !after.notes.empty()) {
     NoteChange change;
     change.kind = NoteChange::Kind::DurationChanged;
     change.measure = measure_number;
