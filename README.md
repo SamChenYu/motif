@@ -1,10 +1,13 @@
-# Motif: A Music-Native Git Wrapper For MuseScore Files 🎼
+# Motif: A Music-Native Git Wrapper For MuseScore Files
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C.svg?logo=cplusplus&logoColor=white)](https://en.cppreference.com/w/cpp/20)
 [![Build: CMake](https://img.shields.io/badge/build-CMake-064F8C.svg?logo=cmake&logoColor=white)](https://cmake.org/)
 [![Requires: Git](https://img.shields.io/badge/requires-Git-F05032.svg?logo=git&logoColor=white)](https://git-scm.com/)
 [![MuseScore](https://img.shields.io/badge/MuseScore-3%20%7C%204-1A70DA.svg?logo=musescore&logoColor=white)](https://musescore.org/)
+
+
+![Render](media/render.png)
 
 `.mscz` files are zipped files, with underlying XML representing musical staffs.
 Even if you git diff'ed the raw XML it would look like this:
