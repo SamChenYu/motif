@@ -6,8 +6,12 @@
 #include "motif/cli/options.h"
 #include "motif/cli/score_source.h"
 #include "motif/diff/engine.h"
+#include "motif/export/mei.h"
 #include "motif/git/repo.h"
 #include "motif/render/diff_view.h"
+#include "motif/render/pager.h"
+#include "motif/render/stave.h"
+#include "motif/render/stave_marks.h"
 
 namespace motif::cli {
 namespace {
@@ -20,7 +24,12 @@ void print_help() {
       "instrument over which measures, which instruments came and went, and how the\n"
       "key signature moved.\n"
       "\n"
-      "  motif diff                  working tree against HEAD\n"
+      "In a terminal, each score opens engraved in stave: added notes in green,\n"
+      "changed ones in yellow and bars that lost notes in red. n and N jump between\n"
+      "changes; q moves on to the next score. --raw, --stat, --orchestration and --key\n"
+      "print text instead, as does a diff whose output isn't a terminal.\n"
+      "\n"
+      "  motif diff                working tree against HEAD\n"
       "  motif diff <rev>            working tree against <rev>\n"
       "  motif diff <rev> <rev>      one revision against another\n"
       "\n"
@@ -57,7 +66,40 @@ render::DiffViewOptions view_options(const Options& options) {
   return view;
 }
 
+/// Where stave is, when this diff should open in it.
+std::optional<fs::path> stave_for(const Options& options) {
+  if (options.help || !options.ok()) return std::nullopt;
+  if (options.raw || options.stat || options.only_orchestration || options.only_key) {
+    return std::nullopt;
+  }
+  // stave needs a terminal to draw in, and keys to read.
+  if (!render::stdout_was_tty() || !render::stdin_was_tty()) return std::nullopt;
+  return render::find_stave();
+}
+
+/// Shows one score's diff in stave, then a short summary to keep in the scrollback.
+/// Returns false when stave couldn't show it, so the text view can be printed instead.
+bool show_in_stave(const fs::path& stave, const diff::ScoreDiff& diff, const score::Score& after,
+                   const fs::path& path, const Revision& from, const Revision& to,
+                   const render::Style& style, const std::string& subtitle) {
+  const auto marks = render::stave_marks(diff, after);
+  if (marks.marks == 0) return false;  // nothing to colour, such as only a removed part
+
+  // ASCII only: stave's status line counts bytes, not characters.
+  const auto name = fmt::format("{}  {} -> {}", path.filename().string(), from.label, to.label);
+  if (render::show_in_stave(stave, mei::to_mei(after), marks, name) != 0) return false;
+
+  render::DiffViewOptions summary;
+  summary.stat_only = true;
+  render::render_diff(diff, style, subtitle, summary);
+  return true;
+}
+
 }  // namespace
+
+bool diff_opens_stave(const std::vector<std::string>& args) {
+  return stave_for(parse_options(args, /*accepts_revisions=*/true)).has_value();
+}
 
 int cmd_diff(const std::vector<std::string>& args) {
   auto options = parse_options(args, /*accepts_revisions=*/true);
@@ -99,6 +141,13 @@ int cmd_diff(const std::vector<std::string>& args) {
     return 0;
   }
 
+  const auto stave = stave_for(options);
+  if (!stave && render::built_with_stave() && !options.raw && !options.stat &&
+      !options.only_orchestration && !options.only_key && render::stdout_was_tty() &&
+      !render::find_stave()) {
+    fmt::print(stderr, "motif: stave isn't next to motif or on PATH, so showing text instead\n");
+  }
+
   const auto style = options.style();
   const auto subtitle = fmt::format("{} {} {}", from.label, style.unicode ? "→" : "->", to.label);
   const auto diff_options = options.to_diff_options();
@@ -135,6 +184,10 @@ int cmd_diff(const std::vector<std::string>& args) {
     // filename is the only name the piece has.
     if (diff.title.empty()) diff.title = path.stem().string();
 
+    if (stave && !diff.empty() &&
+        show_in_stave(*stave, diff, *after, path, from, to, style, subtitle)) {
+      continue;
+    }
     render::render_diff(diff, style, subtitle, view_options(options));
   }
 

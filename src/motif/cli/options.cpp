@@ -63,6 +63,7 @@ const char* common_flag_help() {
       "  --key                 only key and time signature changes\n"
       "  --stat                counts only, no per-instrument detail\n"
       "  --detail              log: expand every listed commit\n"
+      "  --raw                 diff: text only, instead of notation in stave\n"
       "  --ascii               plain ASCII instead of box-drawing characters\n"
       "  --no-color            no ANSI colour\n";
 }
@@ -101,6 +102,10 @@ Options parse_options(const std::vector<std::string>& args, bool accepts_revisio
     }
     if (arg == "--detail") {
       options.detail = true;
+      continue;
+    }
+    if (arg == "--raw") {
+      options.raw = true;
       continue;
     }
     if (arg == "--orchestration") {

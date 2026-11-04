@@ -13,6 +13,7 @@ add_library(motif_core STATIC
   motif/render/pager.cpp
   motif/render/notation.cpp
   motif/render/stave_marks.cpp
+  motif/render/stave.cpp
   motif/render/status_view.cpp
   motif/render/diff_view.cpp
   motif/render/log_view.cpp

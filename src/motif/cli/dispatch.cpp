@@ -88,15 +88,17 @@ int dispatch(std::vector<std::string> args) {
   // long output the way git does.
   render::init_terminal();
 
-  const bool wants_pager =
-      std::find(args.begin(), args.end(), "--no-pager") == args.end() &&
-      std::find(args.begin(), args.end(), "--help") == args.end() &&
-      std::find(args.begin(), args.end(), "-h") == args.end();
-
   std::vector<std::string> forwarded;
   for (const auto& arg : args) {
     if (arg != "--no-pager") forwarded.push_back(arg);
   }
+
+  // stave is a pager of its own, and needs the terminal to itself.
+  const bool wants_pager =
+      std::find(args.begin(), args.end(), "--no-pager") == args.end() &&
+      std::find(args.begin(), args.end(), "--help") == args.end() &&
+      std::find(args.begin(), args.end(), "-h") == args.end() &&
+      !(cmd == "diff" && diff_opens_stave(forwarded));
 
   if (wants_pager) render::start_pager();
 

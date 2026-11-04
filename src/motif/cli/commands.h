@@ -13,4 +13,8 @@ int cmd_diff(const std::vector<std::string>& args);
 int cmd_log(const std::vector<std::string>& args);
 int cmd_inspect(const std::vector<std::string>& args);
 
+/// True when `motif diff` with these arguments will show its scores in stave, which
+/// takes over the terminal, rather than printing text a pager can take.
+bool diff_opens_stave(const std::vector<std::string>& args);
+
 }  // namespace motif::cli
