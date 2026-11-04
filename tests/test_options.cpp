@@ -123,3 +123,14 @@ TEST_CASE("the raw flag asks diff for its text view", "[options]") {
   CHECK(options.raw);
   CHECK(options.positional == std::vector<std::string>{"HEAD~1"});
 }
+
+TEST_CASE("context is set the way git sets it, and the full score asked for", "[options]") {
+  CHECK(*parse({"-U3"}).context == 3);
+  CHECK(*parse({"-U", "3"}).context == 3);
+  CHECK(*parse({"--unified=0"}).context == 0);
+  CHECK(*parse({"--unified", "5"}).context == 5);
+  CHECK_FALSE(parse({}).context.has_value());
+  CHECK(parse({"--full"}).full);
+  CHECK_FALSE(parse({"-Ux"}).ok());
+  CHECK_FALSE(parse({"-U"}).ok());
+}

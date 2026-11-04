@@ -65,6 +65,8 @@ const char* common_flag_help() {
       "  --detail              log: expand every listed commit\n"
       "  --raw                 diff: text only, instead of notation in stave\n"
       "  --split               diff: old and new side by side, instead of in one score\n"
+      "  -U<n>, --unified=<n>  diff: n unchanged bars either side of each change (default 2)\n"
+      "  --full                diff: the whole score, not just the changes\n"
       "  --ascii               plain ASCII instead of box-drawing characters\n"
       "  --no-color            no ANSI colour\n";
 }
@@ -111,6 +113,30 @@ Options parse_options(const std::vector<std::string>& args, bool accepts_revisio
     }
     if (arg == "--split") {
       options.split = true;
+      continue;
+    }
+    if (arg == "--full") {
+      options.full = true;
+      continue;
+    }
+
+    // -U3, -U 3, --unified=3 or --unified 3, as git spells it.
+    if (arg.starts_with("-U") || matches(arg, "--unified")) {
+      std::string value;
+      bool given = false;
+      if (arg.starts_with("-U") && arg.size() > 2) {
+        value = arg.substr(2);
+        given = true;
+      } else {
+        given = take_value(args, i, arg == "-U" ? "-U" : "--unified", value);
+      }
+      int context = 0;
+      if (!given || std::from_chars(value.data(), value.data() + value.size(), context).ec != std::errc{} ||
+          context < 0) {
+        options.error = "-U needs a number of bars, like -U2";
+        return options;
+      }
+      options.context = context;
       continue;
     }
     if (arg == "--orchestration") {

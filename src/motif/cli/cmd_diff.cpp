@@ -27,8 +27,9 @@ void print_help() {
       "In a terminal, each score opens engraved in stave as one score that reads\n"
       "straight through: wherever bars changed, they appear as they were, on red with\n"
       "removed and changed notes in red, then as they are, on green with added and\n"
-      "changed notes in green. n and N jump between changes; q moves on to the next\n"
-      "score. --split puts\n"
+      "changed notes in green. Like git diff, it shows only the changes, with two\n"
+      "unchanged bars either side (-U<n> for more or fewer, --full for every bar).\n"
+      "n and N jump between changes; q moves on to the next score. --split puts\n"
       "the two versions side by side instead. --raw, --stat, --orchestration and --key\n"
       "print text, as does a diff whose output isn't a terminal.\n"
       "\n"
@@ -101,8 +102,8 @@ bool show_split(const fs::path& stave, const diff::ScoreDiff& diff, const score:
 /// Returns false when stave couldn't show it.
 bool show_unified(const fs::path& stave, const diff::ScoreDiff& diff, const score::Score& before,
                   const score::Score& after, const std::string& file, const Revision& from,
-                  const Revision& to) {
-  const auto unified = render::unified_diff(diff, before, after, from.label, to.label);
+                  const Revision& to, int context) {
+  const auto unified = render::unified_diff(diff, before, after, from.label, to.label, context);
   if (unified.marks == 0 || unified.mei.empty()) return false;
   render::StaveMarks marks;
   marks.json = unified.json;
@@ -119,11 +120,11 @@ bool show_unified(const fs::path& stave, const diff::ScoreDiff& diff, const scor
 bool show_in_stave(const fs::path& stave, const diff::ScoreDiff& diff, const score::Score& before,
                    const score::Score& after, const fs::path& path, const Revision& from,
                    const Revision& to, const render::Style& style, const std::string& subtitle,
-                   bool split) {
+                   bool split, int context) {
   // ASCII only: stave's status line counts bytes, not characters.
   const auto file = path.filename().string();
   const bool shown = split ? show_split(stave, diff, before, after, file, from, to)
-                           : show_unified(stave, diff, before, after, file, from, to);
+                           : show_unified(stave, diff, before, after, file, from, to, context);
   if (!shown) return false;
 
   render::DiffViewOptions summary;
@@ -223,7 +224,7 @@ int cmd_diff(const std::vector<std::string>& args) {
 
     if (stave && !diff.empty() &&
         show_in_stave(*stave, diff, *before, *after, path, from, to, style, subtitle,
-                      options.split)) {
+                      options.split, options.full ? -1 : options.context.value_or(2))) {
       continue;
     }
     render::render_diff(diff, style, subtitle, view_options(options));
