@@ -4,7 +4,7 @@
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C.svg?logo=cplusplus&logoColor=white)](https://en.cppreference.com/w/cpp/20)
 [![Build: CMake](https://img.shields.io/badge/build-CMake-064F8C.svg?logo=cmake&logoColor=white)](https://cmake.org/)
 [![Requires: Git](https://img.shields.io/badge/requires-Git-F05032.svg?logo=git&logoColor=white)](https://git-scm.com/)
-[![MuseScore](https://img.shields.io/badge/MuseScore-4-1A70DA.svg?logo=musescore&logoColor=white)](https://musescore.org/)
+[![MuseScore](https://img.shields.io/badge/MuseScore-3%20%7C%204-1A70DA.svg?logo=musescore&logoColor=white)](https://musescore.org/)
 
 `.mscz` files are zipped files, with underlying XML representing musical staffs.
 Even if you git diff'ed the raw XML it would look like this:
@@ -32,6 +32,12 @@ Even if you git diff'ed the raw XML it would look like this:
 | `motif inspect <file>` | Print a structural breakdown of a score (parts, staves, measures, notes) |
 
 Any other command will be forwarded straight to git and returned without modification.
+
+### Supported files
+
+motif reads `.mscz` and `.mscx` scores from MuseScore 3 and 4. MuseScore 4 gives every bar and
+note an id, so an edited bar is always recognised as the same bar. MuseScore 3 files have no ids,
+so motif matches bars by their content, and by position where content alone can't tell.
 
 ---
 
@@ -72,9 +78,6 @@ first change.
 | + - | zoom |
 | q | next score, or quit |
 
-Notes are drawn at concert pitch. stave draws pixels in terminals that show sixel images
-(Windows Terminal 1.22+, WezTerm, foot, iTerm2), and falls back to braille characters elsewhere.
-After you quit, motif prints a summary of the counts.
 
 `--raw` prints the text view below instead. So do `--stat`, `--orchestration` and `--key`,
 and any `motif diff` whose output isn't a terminal (piped, or redirected to a file):
@@ -181,6 +184,9 @@ $ cmake -S . -B build
 $ cmake --build build --config Release
 $ ctest --test-dir build -C Release --output-on-failure
 ```
+
+The end-to-end tests are a shell script. On Windows they run under Git for Windows' `sh`, and
+are skipped if it can't be found.
 
 The programs land together in `build/bin/` (`build/bin/Release/` with Visual Studio): `motif`,
 `stave`, and `verovio-data/`, which holds stave's music fonts. Keep them together when
