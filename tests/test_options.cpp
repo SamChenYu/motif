@@ -115,3 +115,11 @@ TEST_CASE("section selectors and display flags are independent", "[options]") {
   CHECK_FALSE(style.color);
   CHECK_FALSE(style.unicode);
 }
+
+TEST_CASE("--raw asks diff for its text view", "[options]") {
+  CHECK_FALSE(parse({}).raw);
+  const auto options = parse({"HEAD~1", "--raw"});
+  REQUIRE(options.ok());
+  CHECK(options.raw);
+  CHECK(options.positional == std::vector<std::string>{"HEAD~1"});
+}
