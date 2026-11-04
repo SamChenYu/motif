@@ -31,6 +31,43 @@ void append_positional(Alignment& out, std::size_t b_begin, std::size_t b_end,
   }
 }
 
+/// Turns deleted-then-inserted bars into edited ones.
+///
+/// Matching by content, an edited bar can only appear as one bar deleted and another
+/// inserted in its place. Within each stretch between matches, bars deleted and bars
+/// inserted are paired off in order as the same bar, changed; only the surplus on one
+/// side is a real insertion or deletion.
+Alignment pair_replacements(const Alignment& alignment) {
+  Alignment out;
+  out.reserve(alignment.size());
+  for (std::size_t i = 0; i < alignment.size();) {
+    if (alignment[i].op == MeasureOp::Match) {
+      out.push_back(alignment[i++]);
+      continue;
+    }
+    std::vector<int> deleted;
+    std::vector<int> inserted;
+    for (; i < alignment.size() && alignment[i].op != MeasureOp::Match; ++i) {
+      if (alignment[i].op == MeasureOp::Delete) {
+        deleted.push_back(alignment[i].before);
+      } else {
+        inserted.push_back(alignment[i].after);
+      }
+    }
+    const std::size_t paired = std::min(deleted.size(), inserted.size());
+    for (std::size_t k = 0; k < paired; ++k) {
+      out.push_back({MeasureOp::Match, deleted[k], inserted[k]});
+    }
+    for (std::size_t k = paired; k < deleted.size(); ++k) {
+      out.push_back({MeasureOp::Delete, deleted[k], -1});
+    }
+    for (std::size_t k = paired; k < inserted.size(); ++k) {
+      out.push_back({MeasureOp::Insert, -1, inserted[k]});
+    }
+  }
+  return out;
+}
+
 }  // namespace
 
 std::string measure_fingerprint(const score::Measure& measure) {
@@ -192,7 +229,7 @@ Alignment align_score(const score::Score& before, const score::Score& after,
     return tokens;
   };
 
-  return align_tokens(slice_tokens(before, true), slice_tokens(after, false));
+  return pair_replacements(align_tokens(slice_tokens(before, true), slice_tokens(after, false)));
 }
 
 }  // namespace motif::diff

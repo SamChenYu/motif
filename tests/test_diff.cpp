@@ -258,3 +258,39 @@ TEST_CASE("a rewritten bar with fresh element ids still aligns by measure", "[di
   CHECK(d.stats.measures_removed == 0);
   CHECK(d.staves[0].total_changes() > 0);
 }
+
+TEST_CASE("without measure ids, an edited bar is still the same bar", "[diff]") {
+  // MuseScore 3 files carry no eids, so bars are matched by content. An edited bar
+  // matches nothing; it must read as changed, not as a bar deleted and another inserted.
+  auto before_measures = baseline_measures();
+  for (auto& m : before_measures) m.eid.clear();
+  auto after_measures = before_measures;
+  after_measures[2].notes = transposed(after_measures[2].notes, 2);
+
+  const auto before = parse(build_score({violin(before_measures)}));
+  const auto after = parse(build_score({violin(after_measures)}));
+  const auto d = compute(before, after);
+
+  REQUIRE(d.staves.size() == 1);
+  CHECK(d.staves[0].first_measure == 3);
+  CHECK(d.staves[0].notes_changed == 4);
+  CHECK(d.staves[0].measures_added == 0);
+  CHECK(d.staves[0].measures_removed == 0);
+  CHECK(d.stats.measures_added == 0);
+  CHECK(d.stats.measures_removed == 0);
+}
+
+TEST_CASE("without measure ids, an inserted bar is still an insertion", "[diff]") {
+  auto before_measures = baseline_measures();
+  for (auto& m : before_measures) m.eid.clear();
+  auto after_measures = before_measures;
+  after_measures.insert(after_measures.begin() + 2, TestMeasure{.notes = scale_run(72, 14)});
+
+  const auto before = parse(build_score({violin(before_measures)}));
+  const auto after = parse(build_score({violin(after_measures)}));
+  const auto d = compute(before, after);
+
+  CHECK(d.stats.measures_added == 1);
+  CHECK(d.stats.measures_removed == 0);
+  CHECK(d.inserted_measures == std::vector<int>{2});
+}
