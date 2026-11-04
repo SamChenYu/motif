@@ -24,4 +24,10 @@ namespace motif::render {
 int show_in_stave(const std::filesystem::path& stave, const std::string& mei,
                   const StaveMarks& marks, const std::string& name);
 
+/// Shows two versions side by side in stave (stave --compare), the older on the left,
+/// with each side's marks, until the user quits. Returns stave's exit code, as above.
+int show_comparison_in_stave(const std::filesystem::path& stave, const std::string& before_mei,
+                             const std::string& after_mei, const StaveComparison& comparison,
+                             const std::string& before_name, const std::string& after_name);
+
 }  // namespace motif::render

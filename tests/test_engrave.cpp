@@ -142,3 +142,77 @@ TEST_CASE("stave finds every note of the concerto by motif's bar, staff, voice, 
   CHECK(r.ok());
 }
 #endif
+
+namespace {
+
+/// Runs stave --compare on two versions with a comparison's marks; returns its result.
+motif::proc::Result run_compare(const TempDir& dir, const motif::score::Score& before,
+                                const motif::score::Score& after,
+                                const motif::render::StaveComparison& c) {
+  write_file(dir.path() / "before.mei", motif::mei::to_mei(before));
+  write_file(dir.path() / "after.mei", motif::mei::to_mei(after));
+  write_file(dir.path() / "before.json", c.before_json);
+  write_file(dir.path() / "after.json", c.after_json);
+  std::vector<std::string> argv{MOTIF_STAVE_EXE,
+                                "--compare",
+                                (dir.path() / "before.mei").string(),
+                                (dir.path() / "after.mei").string(),
+                                "--before-marks",
+                                (dir.path() / "before.json").string(),
+                                "--marks",
+                                (dir.path() / "after.json").string(),
+                                "--png",
+                                (dir.path() / "out.png").string()};
+  if (!c.pairs.empty()) argv.insert(argv.end(), {"--pairs", c.pairs});
+  return motif::proc::run(argv);
+}
+
+}  // namespace
+
+TEST_CASE("stave compares the fixture versions side by side, finding every mark", "[engrave]") {
+  const auto v1 = load(fs::path(MOTIF_FIXTURES) / "v1.mscx");
+  for (const char* name : {"v2_transposed.mscx", "v3_no_oboe.mscx"}) {
+    INFO(name);
+    const auto after = load(fs::path(MOTIF_FIXTURES) / name);
+    const auto c = motif::render::stave_comparison(motif::diff::compute(v1, after), v1, after);
+    INFO(c.before_json << c.after_json);
+    CHECK(c.marks > 0);
+    CHECK(c.dropped == 0);
+
+    TempDir dir;
+    const auto r = run_compare(dir, v1, after, c);
+    INFO(r.err);
+    CHECK(r.ok());
+  }
+}
+
+#ifdef MOTIF_SAMPLE_SCORE
+TEST_CASE("stave compares the concerto with every note raised, finding every note on both sides",
+          "[engrave][sample]") {
+  const auto before = load(MOTIF_SAMPLE_SCORE);
+  auto after = before;
+  int raised = 0;
+  for (auto& staff : after.staves) {
+    for (auto& measure : staff.measures) {
+      for (auto& voice : measure.voices) {
+        for (auto& el : voice.elements) {
+          for (auto& note : el.notes) {
+            note.pitch.midi += 1;
+            note.pitch.tpc += 7;
+            ++raised;
+          }
+        }
+      }
+    }
+  }
+
+  const auto c = motif::render::stave_comparison(motif::diff::compute(before, after), before, after);
+  CHECK(c.dropped == 0);
+  CHECK(c.marks == 2 * raised);
+
+  TempDir dir;
+  const auto r = run_compare(dir, before, after, c);
+  INFO(r.err);
+  CHECK(r.ok());
+}
+#endif

@@ -100,8 +100,13 @@ bool built_with_stave() {
 #endif
 }
 
-int show_in_stave(const fs::path& stave, const std::string& mei, const StaveMarks& marks,
-                  const std::string& name) {
+namespace {
+
+/// Writes stave's input files, by name, into a folder of their own (or MOTIF_DUMP_NOTATION),
+/// then runs stave with `args`, where "{name}" stands for each file's path. Returns stave's
+/// exit code.
+int run_stave(const fs::path& stave, const std::vector<std::pair<std::string, std::string>>& files,
+              const std::vector<std::string>& args) {
   ScratchDir scratch;
   fs::path dir = scratch.path();
   if (const char* dump = env_or_null("MOTIF_DUMP_NOTATION")) {
@@ -114,18 +119,17 @@ int show_in_stave(const fs::path& stave, const std::string& mei, const StaveMark
     return 1;
   }
 
-  const auto score_path = dir / "score.mei";
-  const auto marks_path = dir / "marks.json";
-  if (!write_file(score_path, mei) || !write_file(marks_path, marks.json)) {
-    fmt::print(stderr, "motif: can't write stave's files to {}\n", dir.string());
-    return 1;
+  for (const auto& [name, text] : files) {
+    if (!write_file(dir / name, text)) {
+      fmt::print(stderr, "motif: can't write stave's files to {}\n", dir.string());
+      return 1;
+    }
   }
 
-  std::vector<std::string> argv{stave.string(), score_path.string(), "--marks",
-                                marks_path.string(), "--name", name};
-  if (marks.start_bar) {
-    argv.insert(argv.end(), {"--bar", std::to_string(*marks.start_bar), "--staff",
-                             std::to_string(marks.start_staff)});
+  std::vector<std::string> argv{stave.string()};
+  for (const auto& arg : args) {
+    const bool is_file = arg.size() > 2 && arg.front() == '{' && arg.back() == '}';
+    argv.push_back(is_file ? (dir / arg.substr(1, arg.size() - 2)).string() : arg);
   }
 
   const auto r = proc::run_attached(argv);
@@ -134,6 +138,38 @@ int show_in_stave(const fs::path& stave, const std::string& mei, const StaveMark
     return 1;
   }
   return r.exit_code;
+}
+
+}  // namespace
+
+int show_in_stave(const fs::path& stave, const std::string& mei, const StaveMarks& marks,
+                  const std::string& name) {
+  std::vector<std::string> args{"{score.mei}", "--marks", "{marks.json}", "--name", name};
+  if (marks.start_bar) {
+    args.insert(args.end(), {"--bar", std::to_string(*marks.start_bar), "--staff",
+                             std::to_string(marks.start_staff)});
+  }
+  return run_stave(stave, {{"score.mei", mei}, {"marks.json", marks.json}}, args);
+}
+
+int show_comparison_in_stave(const fs::path& stave, const std::string& before_mei,
+                             const std::string& after_mei, const StaveComparison& comparison,
+                             const std::string& before_name, const std::string& after_name) {
+  std::vector<std::string> args{"--compare",      "{before.mei}", "{after.mei}",
+                                "--before-marks", "{before.json}", "--marks",
+                                "{after.json}",   "--before-name", before_name,
+                                "--name",         after_name};
+  if (!comparison.pairs.empty()) args.insert(args.end(), {"--pairs", comparison.pairs});
+  if (comparison.start_bar) {
+    args.insert(args.end(), {"--bar", std::to_string(*comparison.start_bar), "--staff",
+                             std::to_string(comparison.start_staff)});
+  }
+  return run_stave(stave,
+                   {{"before.mei", before_mei},
+                    {"after.mei", after_mei},
+                    {"before.json", comparison.before_json},
+                    {"after.json", comparison.after_json}},
+                   args);
 }
 
 }  // namespace motif::render
