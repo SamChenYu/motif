@@ -62,7 +62,8 @@ struct NoteChange {
   Kind kind = Kind::PitchChanged;
   int measure = 0;  ///< display number in the newer score
   int voice = 1;
-  int onset = 0;  ///< ticks from the barline
+  int onset = 0;         ///< ticks from the barline, in the newer score (the older, for a removal)
+  int before_onset = 0;  ///< ticks from the barline, in the older score
 
   std::optional<score::Pitch> before;
   std::optional<score::Pitch> after;
@@ -93,7 +94,8 @@ struct Transform {
 /// Runs, not individual measures, are the unit the renderer prints and the unit
 /// transform detection examines -- a transposed phrase spans several bars.
 struct StaffChange {
-  int staff_id = 0;
+  int staff_id = 0;         ///< in the newer score
+  int before_staff_id = 0;  ///< the same staff in the older score
   int part_index = -1;
   std::string part_name;
   std::string staff_label;  ///< part name, disambiguated for multi-staff parts
@@ -198,6 +200,10 @@ struct ScoreDiff {
   /// Measures inserted in the newer score, as indices into its staves' measures. Every
   /// staff gains the bar, so this is score-wide, like the barlines.
   std::vector<int> inserted_measures;
+
+  /// Which measure of the older score is which of the newer, for the whole score: the
+  /// same alignment every staff was compared by.
+  Alignment alignment;
 
   [[nodiscard]] bool empty() const {
     return orchestration.empty() && staves.empty() && key_sigs.empty() && time_sigs.empty();

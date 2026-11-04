@@ -235,6 +235,7 @@ void diff_staff(const Staff& before_staff, const Staff& after_staff, const score
     if (!run) {
       run.emplace();
       run->staff_id = after_staff.id;
+      run->before_staff_id = before_staff.id;
       run->part_index = after_staff.part_index;
       run->part_name = part != nullptr ? part->display_name() : fmt::format("Staff {}", after_staff.id);
       run->staff_label = staff_label(part, after_staff);
@@ -443,6 +444,7 @@ ScoreDiff compute(const Score& before, const Score& after, const Options& option
 
   auto staff_pairs = match_parts(before, after, diff.orchestration);
   const auto alignment = align_score(before, after, staff_pairs);
+  diff.alignment = alignment;
 
   for (const auto& [before_id, after_id] : staff_pairs) {
     if (options.staff && *options.staff != after_id) continue;

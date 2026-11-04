@@ -97,6 +97,7 @@ void diff_notes(const Element& before, const Element& after, int measure_number,
     change.measure = measure_number;
     change.voice = voice;
     change.onset = after.onset;
+    change.before_onset = before.onset;
     if (b != nullptr) change.before = b->pitch;
     if (a != nullptr) change.after = a->pitch;
     change.before_ticks = before.ticks;
@@ -155,6 +156,7 @@ void diff_notes(const Element& before, const Element& after, int measure_number,
     change.measure = measure_number;
     change.voice = voice;
     change.onset = after.onset;
+    change.before_onset = before.onset;
     change.before = before.notes.empty() ? std::optional<score::Pitch>{} : before.notes[0].pitch;
     change.after = after.notes[0].pitch;
     change.before_ticks = before.ticks;
@@ -168,6 +170,7 @@ void diff_notes(const Element& before, const Element& after, int measure_number,
     change.measure = measure_number;
     change.voice = voice;
     change.onset = after.onset;
+    change.before_onset = before.onset;
     if (!after.notes.empty()) change.after = after.notes[0].pitch;
     if (!before.notes.empty()) change.before = before.notes[0].pitch;
     out.push_back(change);
@@ -183,6 +186,7 @@ void emit_element(const Element& el, int measure_number, int voice, NoteChange::
     change.measure = measure_number;
     change.voice = voice;
     change.onset = el.onset;
+    change.before_onset = el.onset;
     if (kind == NoteChange::Kind::Removed) {
       change.before = note.pitch;
       change.before_ticks = el.ticks;
