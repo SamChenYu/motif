@@ -11,6 +11,9 @@ void init_terminal();
 /// True when stdout was a terminal at startup, regardless of any pager since.
 [[nodiscard]] bool stdout_was_tty();
 
+/// True when stdin was a terminal at startup, so a full-screen program can read keys.
+[[nodiscard]] bool stdin_was_tty();
+
 /// The terminal width captured at startup, or 0 when stdout is not a terminal.
 [[nodiscard]] int captured_width();
 

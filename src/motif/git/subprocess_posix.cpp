@@ -8,8 +8,14 @@
 #include <array>
 #include <cerrno>
 #include <cstdlib>
+#include <csignal>
+#include <cstdio>
 #include <cstring>
 #include <sys/wait.h>
+
+#if defined(__APPLE__)
+#include <mach-o/dyld.h>
+#endif
 
 extern char** environ;
 
@@ -157,6 +163,76 @@ Result run(const std::vector<std::string>& argv) {
     r.exit_code = 128 + WTERMSIG(status);
   }
   return r;
+}
+
+Result run_attached(const std::vector<std::string>& argv) {
+  Result r;
+  if (argv.empty()) {
+    r.err = "motif: internal error: empty argv";
+    return r;
+  }
+
+  // As system() does: while the child owns the terminal, Ctrl+C is its business alone.
+  struct sigaction ignore {};
+  struct sigaction old_int {};
+  struct sigaction old_quit {};
+  ignore.sa_handler = SIG_IGN;
+  sigemptyset(&ignore.sa_mask);
+  ::sigaction(SIGINT, &ignore, &old_int);
+  ::sigaction(SIGQUIT, &ignore, &old_quit);
+
+  // The child must start with the default dispositions, not our ignored ones.
+  posix_spawnattr_t attr;
+  posix_spawnattr_init(&attr);
+  sigset_t defaults;
+  sigemptyset(&defaults);
+  sigaddset(&defaults, SIGINT);
+  sigaddset(&defaults, SIGQUIT);
+  posix_spawnattr_setsigdefault(&attr, &defaults);
+  posix_spawnattr_setflags(&attr, POSIX_SPAWN_SETSIGDEF);
+
+  std::fflush(stdout);
+  std::fflush(stderr);
+
+  auto c_argv = to_c_argv(argv);
+  pid_t pid = -1;
+  const int spawn_rc =
+      ::posix_spawnp(&pid, argv[0].c_str(), nullptr, &attr, c_argv.data(), environ);
+  posix_spawnattr_destroy(&attr);
+
+  if (spawn_rc != 0) {
+    r.err = fmt::format("motif: failed to run '{}': {}", argv[0], std::strerror(spawn_rc));
+  } else {
+    int status = 0;
+    while (::waitpid(pid, &status, 0) < 0 && errno == EINTR) {
+      // retry
+    }
+    if (WIFEXITED(status)) {
+      r.exit_code = WEXITSTATUS(status);
+    } else if (WIFSIGNALED(status)) {
+      r.exit_code = 128 + WTERMSIG(status);
+    }
+  }
+
+  ::sigaction(SIGINT, &old_int, nullptr);
+  ::sigaction(SIGQUIT, &old_quit, nullptr);
+  return r;
+}
+
+std::filesystem::path self_executable() {
+#if defined(__APPLE__)
+  uint32_t size = 0;
+  _NSGetExecutablePath(nullptr, &size);
+  std::string buf(size, '\0');
+  if (_NSGetExecutablePath(buf.data(), &size) != 0) return {};
+  std::error_code ec;
+  auto path = std::filesystem::canonical(buf.c_str(), ec);
+  return ec ? std::filesystem::path(buf.c_str()) : path;
+#else
+  std::error_code ec;
+  auto path = std::filesystem::read_symlink("/proc/self/exe", ec);
+  return ec ? std::filesystem::path() : path;
+#endif
 }
 
 void exec(const std::vector<std::string>& argv) {

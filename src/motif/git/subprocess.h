@@ -1,5 +1,6 @@
 #pragma once
 
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -24,10 +25,22 @@ struct Result {
 /// filenames routinely contain spaces.
 Result run(const std::vector<std::string>& argv);
 
+/// Runs `argv` to completion on motif's own stdin, stdout and stderr, for programs that
+/// need the terminal itself, such as stave's full-screen pager.
+///
+/// Ctrl+C goes to the child alone while it runs. `out` is always empty; `err` is set only
+/// when the program could not be started.
+Result run_attached(const std::vector<std::string>& argv);
+
 /// Replaces the current process image with `argv`. Never returns.
 ///
 /// Used for git passthrough so the child inherits our terminal directly: git then sees a
-/// tty and keeps its own pager, colouring, progress meters and credential prompts.
+/// tty and keeps its own pager, colouring, progress meters and credential prompts. On
+/// Windows, which cannot replace a process, motif runs the child attached and exits
+/// with its exit code.
 [[noreturn]] void exec(const std::vector<std::string>& argv);
+
+/// The path of the running motif executable, or empty if the OS won't say.
+[[nodiscard]] std::filesystem::path self_executable();
 
 }  // namespace motif::proc

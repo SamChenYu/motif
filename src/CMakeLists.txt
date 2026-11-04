@@ -14,7 +14,7 @@ add_library(motif_core STATIC
   motif/render/status_view.cpp
   motif/render/diff_view.cpp
   motif/render/log_view.cpp
-  motif/git/subprocess.cpp
+  $<IF:$<PLATFORM_ID:Windows>,motif/git/subprocess_windows.cpp,motif/git/subprocess_posix.cpp>
   motif/git/repo.cpp
   motif/cli/dispatch.cpp
   motif/cli/options.cpp
@@ -32,9 +32,19 @@ target_link_libraries(motif_core
   PRIVATE pugixml::pugixml miniz::miniz
 )
 
-target_compile_options(motif_core PRIVATE
-  -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wno-sign-conversion
-)
+if(MSVC)
+  target_compile_options(motif_core PRIVATE /W4 /permissive-)
+  target_compile_definitions(motif_core PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN _CRT_SECURE_NO_WARNINGS)
+else()
+  target_compile_options(motif_core PRIVATE
+    -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wno-sign-conversion
+  )
+endif()
 
 add_executable(motif main.cpp)
+# On Windows, run with UTF-8 as the process code page, so argv, file names and paths
+# from git all arrive as the UTF-8 the rest of motif expects.
+if(WIN32)
+  target_sources(motif PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/utf8.manifest)
+endif()
 target_link_libraries(motif PRIVATE motif_core)

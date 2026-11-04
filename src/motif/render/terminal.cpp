@@ -1,8 +1,6 @@
 #include "motif/render/terminal.h"
 
 #include <fmt/format.h>
-#include <sys/ioctl.h>
-#include <unistd.h>
 
 #include <cstdlib>
 #include <cstring>

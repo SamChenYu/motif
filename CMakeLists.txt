@@ -17,6 +17,11 @@ endif()
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# fmt needs MSVC to read and write sources as UTF-8; so do motif's own glyphs.
+if(MSVC)
+  add_compile_options(/utf-8)
+endif()
+
 option(MOTIF_BUILD_TESTS "Build the motif test suite" ON)
 option(MOTIF_WITH_STAVE "Build stave, the notation pager (pulls in Verovio and lunasvg)" ON)
 
