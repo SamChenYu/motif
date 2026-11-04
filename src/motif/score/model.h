@@ -80,8 +80,10 @@ struct Element {
   std::string eid;
   int onset = 0;  ///< ticks from the start of the measure
   int ticks = 0;
+  std::string duration_type;  ///< MuseScore's written value: "quarter", "16th", "measure", ...
   int dots = 0;
   bool in_tuplet = false;
+  int tuplet = -1;  ///< innermost tuplet, as an index into Voice::tuplets; -1 for none
   std::vector<Note> notes;                ///< empty for rests
   std::vector<std::string> articulations;  ///< MuseScore subtype names, sorted
 
@@ -90,9 +92,17 @@ struct Element {
   [[nodiscard]] int end_tick() const { return onset + ticks; }
 };
 
+/// A tuplet bracket: `actual` notes in the time of `normal`, e.g. 3 in the time of 2.
+struct Tuplet {
+  int actual = 3;
+  int normal = 2;
+  int parent = -1;  ///< the tuplet this one is nested in, as an index into Voice::tuplets
+};
+
 struct Voice {
   int index = 1;  ///< 1-based, matching MuseScore's own voice numbering
   std::vector<Element> elements;
+  std::vector<Tuplet> tuplets;  ///< in the order they open
 };
 
 struct TimeSig {
@@ -150,6 +160,9 @@ struct Staff {
   int id = 0;
   int part_index = -1;    ///< index into Score::parts
   int index_in_part = 0;  ///< 0 for the right hand of a piano, 1 for the left, etc.
+  /// The clef in force until a measure declares one: the instrument's own, e.g. "F" for
+  /// a cello, which MuseScore does not repeat as a <Clef> in the first measure.
+  std::string default_clef = "G";
   std::vector<Measure> measures;
 };
 

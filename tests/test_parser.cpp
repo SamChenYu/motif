@@ -39,6 +39,7 @@ constexpr const char* kTestScore = R"XML(<?xml version="1.0" encoding="UTF-8"?>
         <longName>Piano</longName>
         <trackName>Piano</trackName>
         <instrumentId>keyboard.piano</instrumentId>
+        <clef staff="2">F</clef>
       </Instrument>
     </Part>
 
@@ -193,6 +194,53 @@ TEST_CASE("tuplet membership is recorded", "[parser]") {
   CHECK_FALSE(els[2].in_tuplet);
   CHECK(els[3].in_tuplet);
   CHECK(els[5].in_tuplet);
+}
+
+TEST_CASE("tuplet ratios and written note values are kept for engraving", "[parser]") {
+  const auto score = parse_mscx(kTestScore);
+  REQUIRE(score.has_value());
+
+  const auto& voice = score->staff_by_id(1)->measures[0].voices[0];
+  REQUIRE(voice.tuplets.size() == 1);
+  CHECK(voice.tuplets[0].actual == 3);
+  CHECK(voice.tuplets[0].normal == 2);
+  CHECK(voice.tuplets[0].parent == -1);
+
+  CHECK(voice.elements[2].tuplet == -1);
+  CHECK(voice.elements[3].tuplet == 0);
+  CHECK(voice.elements[5].tuplet == 0);
+
+  CHECK(voice.elements[0].duration_type == "quarter");
+  CHECK(voice.elements[3].duration_type == "eighth");
+  CHECK(score->staff_by_id(2)->measures[0].voices[0].elements[0].duration_type == "measure");
+}
+
+TEST_CASE("each staff starts in its instrument's clef", "[parser]") {
+  const auto score = parse_mscx(kTestScore);
+  REQUIRE(score.has_value());
+
+  CHECK(score->staff_by_id(1)->default_clef == "G");
+  CHECK(score->staff_by_id(2)->default_clef == "G");
+  CHECK(score->staff_by_id(3)->default_clef == "F");
+}
+
+TEST_CASE("grace notes take no time in the bar", "[parser]") {
+  const auto score = parse_mscx(R"XML(<museScore version="4.70"><Score><Division>480</Division>
+    <Part id="1"><Staff/><trackName>Flute</trackName></Part>
+    <Staff id="1"><Measure><voice>
+      <Chord><acciaccatura/><durationType>eighth</durationType><Note><pitch>74</pitch><tpc>16</tpc></Note></Chord>
+      <Chord><durationType>half</durationType><Note><pitch>72</pitch><tpc>14</tpc></Note></Chord>
+      <Chord><grace16/><durationType>16th</durationType><Note><pitch>71</pitch><tpc>19</tpc></Note></Chord>
+      <Chord><durationType>half</durationType><Note><pitch>72</pitch><tpc>14</tpc></Note></Chord>
+    </voice></Measure></Staff>
+  </Score></museScore>)XML");
+  REQUIRE(score.has_value());
+
+  const auto& els = score->staves[0].measures[0].voices[0].elements;
+  REQUIRE(els.size() == 2);
+  CHECK(els[0].onset == 0);
+  CHECK(els[1].onset == 960);
+  CHECK(els[1].end_tick() == 1920);
 }
 
 TEST_CASE("chords, rests, articulations and ties are distinguished", "[parser]") {

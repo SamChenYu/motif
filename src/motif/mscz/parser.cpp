@@ -53,17 +53,22 @@ Fraction parse_fraction(std::string_view text) {
 /// with `<endTuplet/>`, so this is a stack rather than a property of each chord.
 class TupletStack {
  public:
-  void push(int normal_notes, int actual_notes) {
-    ratios_.push_back({normal_notes, actual_notes});
+  /// Opens a tuplet, recording it in `voice` so engraving can bracket it.
+  void push(int normal_notes, int actual_notes, score::Voice& voice) {
+    voice.tuplets.push_back({actual_notes, normal_notes, innermost()});
+    ratios_.push_back({normal_notes, actual_notes, static_cast<int>(voice.tuplets.size()) - 1});
   }
   void pop() {
     if (!ratios_.empty()) ratios_.pop_back();
   }
   [[nodiscard]] bool active() const { return !ratios_.empty(); }
 
+  /// The open tuplet nearest the notes, as an index into Voice::tuplets, or -1.
+  [[nodiscard]] int innermost() const { return ratios_.empty() ? -1 : ratios_.back().index; }
+
   [[nodiscard]] int scale(int ticks) const {
-    for (const auto& [normal, actual] : ratios_) {
-      ticks = score::apply_tuplet(ticks, normal, actual);
+    for (const auto& ratio : ratios_) {
+      ticks = score::apply_tuplet(ticks, ratio.normal, ratio.actual);
     }
     return ticks;
   }
@@ -72,9 +77,22 @@ class TupletStack {
   struct Ratio {
     int normal;
     int actual;
+    int index;
   };
   std::vector<Ratio> ratios_;
 };
+
+/// True for a grace note's chord, which MuseScore marks with a child such as
+/// <acciaccatura/> or <grace16/>. Grace notes take no time in the bar.
+bool is_grace(const pugi::xml_node& chord) {
+  for (const auto child : chord.children()) {
+    const std::string_view name = child.name();
+    if (name == "acciaccatura" || name == "appoggiatura" || name.starts_with("grace")) {
+      return true;
+    }
+  }
+  return false;
+}
 
 /// Reads a `<Note>`, including whether it is tied to its neighbours.
 Note parse_note(const pugi::xml_node& node) {
@@ -106,9 +124,10 @@ Element parse_element(const pugi::xml_node& node, ElementKind kind, int division
   el.onset = cursor;
   el.dots = node.child("dots").text().as_int(0);
   el.in_tuplet = tuplets.active();
+  el.tuplet = tuplets.innermost();
 
-  const std::string duration_type = child_text(node, "durationType");
-  if (const auto ticks = score::duration_ticks(duration_type, el.dots, division)) {
+  el.duration_type = child_text(node, "durationType");
+  if (const auto ticks = score::duration_ticks(el.duration_type, el.dots, division)) {
     el.ticks = tuplets.scale(*ticks);
   } else if (const auto duration = node.child("duration")) {
     // Whole-measure rests carry an explicit `<duration>` such as 4/4.
@@ -151,6 +170,11 @@ score::Voice parse_voice(const pugi::xml_node& voice_node, int index, int divisi
   for (const auto node : voice_node.children()) {
     const std::string_view name = node.name();
 
+    if (name == "Chord" && is_grace(node)) {
+      // Not modelled yet. Read as an ordinary chord, it would push every later note in
+      // the voice off its beat.
+      continue;
+    }
     if (name == "Chord" || name == "Rest") {
       const auto kind = (name == "Chord") ? ElementKind::Chord : ElementKind::Rest;
       auto el = parse_element(node, kind, division, measure_ticks, tuplets, cursor);
@@ -159,7 +183,7 @@ score::Voice parse_voice(const pugi::xml_node& voice_node, int index, int divisi
 
     } else if (name == "Tuplet") {
       tuplets.push(node.child("normalNotes").text().as_int(1),
-                   node.child("actualNotes").text().as_int(1));
+                   node.child("actualNotes").text().as_int(1), voice);
 
     } else if (name == "endTuplet") {
       tuplets.pop();
@@ -246,7 +270,9 @@ score::Measure parse_measure(const pugi::xml_node& node, int division, StaffCurs
   return measure;
 }
 
-void parse_parts(const pugi::xml_node& score_node, Score& score) {
+/// Reads the parts, and each part's instrument clefs (one per staff) into `default_clefs`.
+void parse_parts(const pugi::xml_node& score_node, Score& score,
+                 std::vector<std::vector<std::string>>& default_clefs) {
   int next_staff_id = 1;
 
   for (const auto part_node : score_node.children("Part")) {
@@ -254,12 +280,22 @@ void parse_parts(const pugi::xml_node& score_node, Score& score) {
     part.id = part_node.attribute("id").as_string();
     part.track_name = child_text(part_node, "trackName");
 
+    std::vector<std::string> clefs;
     if (const auto instrument = part_node.child("Instrument")) {
       part.long_name = child_text(instrument, "longName");
       part.short_name = child_text(instrument, "shortName");
       part.instrument_id = child_text(instrument, "instrumentId");
       part.instrument_name = child_text(instrument, "trackName");
+      for (const auto clef : instrument.children("clef")) {
+        const int staff = clef.attribute("staff").as_int(1);
+        if (staff < 1) continue;
+        if (clefs.size() < static_cast<std::size_t>(staff)) {
+          clefs.resize(static_cast<std::size_t>(staff));
+        }
+        clefs[static_cast<std::size_t>(staff) - 1] = clef.text().as_string();
+      }
     }
+    default_clefs.push_back(std::move(clefs));
 
     // Staff elements inside a Part usually carry no id, so ownership is positional:
     // each part consumes as many score-level staves as it declares.
@@ -273,7 +309,8 @@ void parse_parts(const pugi::xml_node& score_node, Score& score) {
   }
 }
 
-void parse_staves(const pugi::xml_node& score_node, Score& score) {
+void parse_staves(const pugi::xml_node& score_node, Score& score,
+                  const std::vector<std::vector<std::string>>& default_clefs) {
   for (const auto staff_node : score_node.children("Staff")) {
     const auto id_attr = staff_node.attribute("id");
     if (!id_attr) continue;  // a Part's own <Staff> stub, not a score-level staff
@@ -297,6 +334,9 @@ void parse_staves(const pugi::xml_node& score_node, Score& score) {
         if (staff.id != staff_id) continue;
         staff.part_index = static_cast<int>(p);
         staff.index_in_part = index_in_part;
+        const auto& clefs = default_clefs[p];
+        const auto i = static_cast<std::size_t>(index_in_part);
+        if (i < clefs.size() && !clefs[i].empty()) staff.default_clef = clefs[i];
       }
       ++index_in_part;
     }
@@ -328,8 +368,9 @@ std::optional<Score> parse_mscx(std::string_view xml, std::string* error) {
     score.meta[tag.attribute("name").as_string()] = tag.text().as_string();
   }
 
-  parse_parts(score_node, score);
-  parse_staves(score_node, score);
+  std::vector<std::vector<std::string>> default_clefs;
+  parse_parts(score_node, score, default_clefs);
+  parse_staves(score_node, score, default_clefs);
 
   if (score.staves.empty()) {
     set_error(error, "score contains no staves");
