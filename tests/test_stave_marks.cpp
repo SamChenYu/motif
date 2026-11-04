@@ -158,3 +158,60 @@ TEST_CASE("an unchanged score has no marks and nowhere to start", "[stave-marks]
   CHECK(marks.json == "[\n]\n");
   CHECK_FALSE(marks.start_bar.has_value());
 }
+
+TEST_CASE("side by side, a changed note is marked as it was and as it is", "[stave-marks]") {
+  auto edited = baseline();
+  edited[2].notes[1] = TestNote{70, 12};  // A4 becomes Bb4, on beat 2 of bar 3
+
+  const auto before = parse(build_score({violin(baseline())}));
+  const auto after = parse(build_score({violin(edited)}));
+  const auto c = motif::render::stave_comparison(compute(before, after), before, after);
+
+  INFO(c.before_json << c.after_json);
+  CHECK(contains(c.before_json, R"({"tone": "changed", "bar": 3, "staff": 1, "voice": 1, "at": "1", "pitch": 69})"));
+  CHECK(contains(c.after_json, R"({"tone": "changed", "bar": 3, "staff": 1, "voice": 1, "at": "1", "pitch": 70})"));
+  CHECK(c.marks == 2);
+  CHECK(c.dropped == 0);
+  CHECK(c.pairs == "1-3=1-3");
+  REQUIRE(c.start_bar.has_value());
+  CHECK(*c.start_bar == 3);
+}
+
+TEST_CASE("side by side, a removed note is red where it was", "[stave-marks]") {
+  auto edited = baseline();
+  edited[0].notes.pop_back();  // bar 1 loses its last note, on beat 4
+
+  const auto before = parse(build_score({violin(baseline())}));
+  const auto after = parse(build_score({violin(edited)}));
+  const auto c = motif::render::stave_comparison(compute(before, after), before, after);
+
+  INFO(c.before_json << c.after_json);
+  CHECK(contains(c.before_json, R"({"tone": "removed", "bar": 1, "staff": 1, "voice": 1, "at": "3", "pitch": 65})"));
+  CHECK(c.after_json == "[\n]\n");
+  CHECK(c.marks == 1);
+}
+
+TEST_CASE("side by side, inserted and deleted bars are marked and paired around", "[stave-marks]") {
+  auto edited = baseline();
+  edited.erase(edited.begin() + 1);  // bar 2 deleted...
+  edited.push_back(TestMeasure{.eid = "NEW", .notes = scale_run(64, 18), .element_prefix = "new"});
+
+  const auto before = parse(build_score({violin(baseline())}));
+  const auto after = parse(build_score({violin(edited)}));
+  const auto c = motif::render::stave_comparison(compute(before, after), before, after);
+
+  INFO(c.before_json << c.after_json << c.pairs);
+  CHECK(contains(c.before_json, R"({"tone": "removed", "bar": 2})"));
+  CHECK(contains(c.after_json, R"({"tone": "added", "bar": 3})"));
+  CHECK(c.pairs == "1=1,3=2");
+}
+
+TEST_CASE("side by side, a removed instrument is red all the way through", "[stave-marks]") {
+  const auto before = parse(build_score({violin(baseline()), cello(baseline())}));
+  const auto after = parse(build_score({violin(baseline())}));
+  const auto c = motif::render::stave_comparison(compute(before, after), before, after);
+
+  INFO(c.before_json);
+  CHECK(contains(c.before_json, R"({"tone": "removed", "bar": 1, "to": 3, "staff": 2})"));
+  CHECK(c.after_json == "[\n]\n");
+}

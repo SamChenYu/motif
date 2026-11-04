@@ -33,4 +33,31 @@ struct StaveMarks {
 /// rejects a marks file in which any mark misses.
 [[nodiscard]] StaveMarks stave_marks(const diff::ScoreDiff& diff, const score::Score& after);
 
+/// A diff as stave shows it side by side (stave --compare): marks for each version, and
+/// which bars of one are which of the other.
+struct StaveComparison {
+  /// stave's --before-marks, on the older score: removed notes in red, changed notes as
+  /// they were in yellow, deleted bars and removed instruments in red.
+  std::string before_json;
+  /// stave's --marks, on the newer score: added notes in green, changed notes in yellow,
+  /// inserted bars and added instruments in green.
+  std::string after_json;
+  /// stave's --pairs: runs of older bars matched to newer ones, like "1-17=1-17,19-40=18-39".
+  std::string pairs;
+
+  /// Where the first change on either side is, as a bar of the newer score (its printed
+  /// number) and a staff. Unset when nothing is marked.
+  std::optional<int> start_bar;
+  int start_staff = 1;
+
+  int marks = 0;    ///< how many marks the two files hold
+  int dropped = 0;  ///< changes left out because no note matched them
+};
+
+/// Builds the side-by-side view of `diff`, between `before` and `after` as mei::to_mei
+/// writes them. As with stave_marks, every note mark is checked against its score.
+[[nodiscard]] StaveComparison stave_comparison(const diff::ScoreDiff& diff,
+                                               const score::Score& before,
+                                               const score::Score& after);
+
 }  // namespace motif::render
