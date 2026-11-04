@@ -18,6 +18,7 @@ endif()
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(MOTIF_BUILD_TESTS "Build the motif test suite" ON)
+option(MOTIF_WITH_STAVE "Build stave, the notation pager (pulls in Verovio and lunasvg)" ON)
 
 # ---------------------------------------------------------------------------
 # Third-party dependencies, vendored under external/ and compiled from source.
@@ -46,6 +47,19 @@ add_library(fmt STATIC external/fmt/src/format.cc external/fmt/src/os.cc)
 target_include_directories(fmt SYSTEM PUBLIC external/fmt/include)
 set_target_properties(fmt PROPERTIES POSITION_INDEPENDENT_CODE ON)
 add_library(fmt::fmt ALIAS fmt)
+
+# stave -- renders scores as engraved notation in the terminal (sixel, kitty or braille).
+# A git submodule with nested submodules of its own (Verovio, lunasvg), so it must be
+# initialised recursively. It defines the targets stave_core (library) and stave (program).
+if(MOTIF_WITH_STAVE)
+  if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/external/stave/external/verovio/include/vrv/toolkit.h)
+    message(FATAL_ERROR
+      "external/stave or its submodules are missing. Run:\n"
+      "  git submodule update --init --recursive\n"
+      "or configure with -DMOTIF_WITH_STAVE=OFF to build without it.")
+  endif()
+  add_subdirectory(external/stave)
+endif()
 
 add_subdirectory(src)
 

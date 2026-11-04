@@ -152,3 +152,6 @@ which itself nests other dependencies. Submodules must be initialized **recursiv
 # When cloning fresh:
 $ git submodule update --init --recursive
 ```
+
+stave pulls in Verovio, which takes a few minutes to compile the first time. Configure with
+`-DMOTIF_WITH_STAVE=OFF` to build motif without it.
