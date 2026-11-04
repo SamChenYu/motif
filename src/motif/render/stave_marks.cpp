@@ -136,6 +136,12 @@ class SideMarks {
     if (measure >= 0 && measure < lookup_.count()) bars_[{staff, measure}] = tone;
   }
 
+  /// Tints a whole bar's background (by index), on every staff: a diff's line highlight.
+  /// Notes and bars marked in it still show their own colour on top.
+  void fill(int measure, Tone tone) {
+    if (measure >= 0 && measure < lookup_.count()) fills_[{0, measure}] = tone;
+  }
+
   /// Marks the notes of the chord a change names: the one sounding `pitch`, or all of
   /// them for a change to the whole chord. Returns false when no such note exists.
   bool chord(int staff, int measure, int voice, int onset, std::optional<int> pitch, Tone tone) {
@@ -192,25 +198,30 @@ class SideMarks {
   /// set to how many marks it lists.
   [[nodiscard]] std::string json(int& count) const {
     std::vector<std::string> items;
-    for (auto it = bars_.begin(); it != bars_.end();) {
-      const auto [staff, start] = it->first;
-      const Tone tone = it->second;
-      int end = start;
-      auto next = std::next(it);
-      while (next != bars_.end() && next->first.first == staff && next->first.second == end + 1 &&
-             next->second == tone &&
-             lookup_.number(end + 1) == lookup_.number(end) + 1) {
-        ++end;
-        ++next;
+    const auto runs = [&](const std::map<std::pair<int, int>, Tone>& marked, bool fill) {
+      for (auto it = marked.begin(); it != marked.end();) {
+        const auto [staff, start] = it->first;
+        const Tone tone = it->second;
+        int end = start;
+        auto next = std::next(it);
+        while (next != marked.end() && next->first.first == staff &&
+               next->first.second == end + 1 && next->second == tone &&
+               lookup_.number(end + 1) == lookup_.number(end) + 1) {
+          ++end;
+          ++next;
+        }
+        std::string item = fmt::format(R"({{"tone": "{}", "bar": {})", tone_name(tone),
+                                       lookup_.number(start));
+        if (end != start) item += fmt::format(R"(, "to": {})", lookup_.number(end));
+        if (staff != 0) item += fmt::format(R"(, "staff": {})", staff);
+        if (fill) item += R"(, "fill": true)";
+        item += "}";
+        items.push_back(std::move(item));
+        it = next;
       }
-      std::string item = fmt::format(R"({{"tone": "{}", "bar": {})", tone_name(tone),
-                                     lookup_.number(start));
-      if (end != start) item += fmt::format(R"(, "to": {})", lookup_.number(end));
-      if (staff != 0) item += fmt::format(R"(, "staff": {})", staff);
-      item += "}";
-      items.push_back(std::move(item));
-      it = next;
-    }
+    };
+    runs(fills_, true);
+    runs(bars_, false);
     for (const auto& [key, note] : notes_) {
       const auto [staff, measure, voice, onset, pitch] = key;
       (void)onset;
@@ -238,6 +249,7 @@ class SideMarks {
   const Bars& lookup_;
   std::map<NoteKey, Note> notes_;
   std::map<std::pair<int, int>, Tone> bars_;  ///< (staff, measure index); staff 0 is every staff
+  std::map<std::pair<int, int>, Tone> fills_;  ///< the same, for tinted backgrounds
 };
 
 /// Marks every bar of an instrument's staves.
@@ -509,6 +521,8 @@ UnifiedDiff unified_diff(const diff::ScoreDiff& diff, const Score& before, const
   std::vector<int> deleted;   // output bars
   std::vector<int> inserted;  // output bars
   std::vector<bool> from_new;  // for each output bar
+  std::vector<int> was_bars;   // output bars showing a changed stretch as it was
+  std::vector<int> now_bars;   // ...and as it is
 
   const auto add = [&](const Score& score, int measure, const std::vector<int>& staves,
                        const std::string& text) {
@@ -543,6 +557,7 @@ UnifiedDiff unified_diff(const diff::ScoreDiff& diff, const Score& before, const
     for (const auto* link : hunk) {
       if (link->op == MeasureOp::Insert) continue;
       const int b = add(before, link->before, old_staves, first ? before_text : "");
+      was_bars.push_back(b);
       old_bar[static_cast<std::size_t>(link->before)] = b;
       if (link->op == MeasureOp::Delete) deleted.push_back(b);
       first = false;
@@ -553,6 +568,7 @@ UnifiedDiff unified_diff(const diff::ScoreDiff& diff, const Score& before, const
       if (link->op == MeasureOp::Delete) continue;
       if (first && had_old) bars.back().dashed_end = true;  // between the old bars and the new
       const int a = add(after, link->after, new_staves, first ? after_text : "");
+      now_bars.push_back(a);
       new_bar[static_cast<std::size_t>(link->after)] = a;
       if (link->op == MeasureOp::Insert) inserted.push_back(a);
       if (link->op == MeasureOp::Match) after_to_before[static_cast<std::size_t>(link->after)] = link->before;
@@ -564,6 +580,9 @@ UnifiedDiff unified_diff(const diff::ScoreDiff& diff, const Score& before, const
   SideMarks marks(unified);
   for (const int b : deleted) marks.bar(0, b, Tone::Removed);
   for (const int a : inserted) marks.bar(0, a, Tone::Added);
+  // Like a unified diff's line highlights: the old stretch on red, the new on green.
+  for (const int b : was_bars) marks.fill(b, Tone::Removed);
+  for (const int a : now_bars) marks.fill(a, Tone::Added);
 
   // An added instrument is green wherever the newer version's bars are.
   for (std::size_t s = 0; s < after.staves.size(); ++s) {

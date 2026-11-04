@@ -232,7 +232,9 @@ TEST_CASE("unified, a changed bar appears as it was and then as it is", "[stave-
   // Bars 1 and 2 once, then bar 3 as it was (the score's bar 3) and as it is (bar 4).
   CHECK(contains(u.json, R"({"tone": "removed", "bar": 3, "staff": 1, "voice": 1, "at": "1", "pitch": 69})"));
   CHECK(contains(u.json, R"({"tone": "added", "bar": 4, "staff": 1, "voice": 1, "at": "1", "pitch": 70})"));
-  CHECK(u.marks == 2);
+  CHECK(u.marks == 4);  // the two notes, and the two bars' backgrounds
+  CHECK(contains(u.json, R"({"tone": "removed", "bar": 3, "fill": true})"));
+  CHECK(contains(u.json, R"({"tone": "added", "bar": 4, "fill": true})"));
   REQUIRE(u.start_bar.has_value());
   CHECK(*u.start_bar == 2);  // a bar before the change
 

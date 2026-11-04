@@ -257,7 +257,10 @@ TEST_CASE("stave shows the concerto with every note raised as one unified score"
   const auto u = motif::render::unified_diff(motif::diff::compute(before, after), before, after,
                                              "HEAD", "working tree");
   CHECK(u.dropped == 0);
-  CHECK(u.marks == 2 * raised);
+  // Every note, as it was and as it is, besides the backgrounds of the bars.
+  std::size_t notes = 0;
+  for (auto at = u.json.find("\"pitch\""); at != std::string::npos; at = u.json.find("\"pitch\"", at + 1)) ++notes;
+  CHECK(notes == 2 * static_cast<std::size_t>(raised));
 
   TempDir dir;
   const auto r = run_stave(dir, u.mei, u.json);
