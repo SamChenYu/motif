@@ -116,7 +116,7 @@ TEST_CASE("section selectors and display flags are independent", "[options]") {
   CHECK_FALSE(style.unicode);
 }
 
-TEST_CASE("--raw asks diff for its text view", "[options]") {
+TEST_CASE("the raw flag asks diff for its text view", "[options]") {
   CHECK_FALSE(parse({}).raw);
   const auto options = parse({"HEAD~1", "--raw"});
   REQUIRE(options.ok());
