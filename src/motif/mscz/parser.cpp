@@ -203,7 +203,9 @@ score::Voice parse_voice(const pugi::xml_node& voice_node, int index, int divisi
 
     } else if (name == "KeySig") {
       score::KeySig ks;
-      ks.concert = node.child("concertKey").text().as_int(0);
+      // MuseScore 4 writes <concertKey>; MuseScore 3 wrote the same count as <accidental>.
+      const auto concert = node.child("concertKey");
+      ks.concert = (concert ? concert : node.child("accidental")).text().as_int(0);
       if (const auto actual = node.child("actualKey")) {
         ks.actual = actual.text().as_int(0);
       }
